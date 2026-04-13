@@ -1,0 +1,297 @@
+import { useState, useEffect } from "react";
+import { recipeAPI } from "../../services/api";
+import RecipeCard from "../../components/RecipeCard";
+import SettingsModal from "../../components/SettingsModal";
+import ProfileUpdateModal from "../../components/ProfileUpdateModal";
+import { getImageUrl } from "../../utils";
+
+const NAV = [
+  { icon: "🏠", label: "Feed", id: "feed" },
+  { icon: "👤", label: "Profile", id: "profile" },
+];
+
+const CATEGORIES = ["All", "Breakfast", "Lunch", "Dinner", "Dessert", "Vegetarian", "Seafood"];
+
+export default function UserDashboardPage({ setPage, setSelectedRecipe, user, setUser, onLogout }) {
+  const [activeNav, setActiveNav] = useState("feed");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    if (activeNav === "feed") {
+      fetchFeed();
+    }
+  }, [activeNav]);
+
+  const fetchFeed = async () => {
+    try {
+      setLoading(true);
+      const response = await recipeAPI.getAll({ status: "Live", limit: 50 });
+      if (response.data.success) {
+        setRecipes(response.data.data);
+      }
+    } catch (err) {
+      console.error("Error fetching feed:", err);
+      setError("Failed to load recipes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredRecipes = activeCategory === "All"
+    ? recipes
+    : recipes.filter(r => r.tag === activeCategory || r.cuisine === activeCategory);
+
+  const featuredRecipe = filteredRecipes[0];
+  const trendingRecipes = filteredRecipes.slice(1);
+
+  const renderFeed = () => (
+    <div className="scroll-container">
+      {/* Category Filter Bar */}
+      <div style={{ 
+        display: "flex", 
+        gap: "12px", 
+        marginBottom: "32px", 
+        overflowX: "auto", 
+        paddingBottom: "8px",
+        msOverflowStyle: "none",
+        scrollbarWidth: "none"
+      }}>
+        {CATEGORIES.map(cat => (
+          <button 
+            key={cat} 
+            className={`filter-chip ${activeCategory === cat ? "active" : ""}`}
+            onClick={() => setActiveCategory(cat)}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+        {filteredRecipes.length > 0 ? (
+          <>
+            {featuredRecipe && (
+              <div style={{ background: "var(--white)", borderRadius: "32px", overflow: "hidden", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border-light)" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 1.4fr) 1fr", gap: "32px", minHeight: "420px" }}>
+                  <div style={{ position: "relative", minHeight: "420px" }}>
+                    <img
+                      src={getImageUrl(featuredRecipe.image)}
+                      alt={featuredRecipe.title}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                    <div style={{ position: "absolute", bottom: "24px", left: "24px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                      <span className="badge" style={{ background: "rgba(255,255,255,0.92)", color: "var(--navy)", border: "none" }}>{featuredRecipe.tag || "Chef Special"}</span>
+                      {featuredRecipe.status && (
+                        <span className="badge" style={{ background: "rgba(17, 24, 39, 0.85)", color: "#fff", border: "none" }}>Approved by Admin</span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ padding: "40px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--primary)" }}>Chef Showcase</span>
+                        <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>{featuredRecipe.cuisine || "Contemporary"} • {featuredRecipe.time || "30m"}</span>
+                      </div>
+                      <h2 style={{ fontSize: "3rem", lineHeight: "1.05", marginBottom: "18px", color: "var(--navy)", fontFamily: "'Playfair Display', serif" }}>{featuredRecipe.title}</h2>
+                      <p style={{ fontSize: "1rem", color: "var(--text-main)", lineHeight: "1.8", maxWidth: "520px", marginBottom: "30px" }}>
+                        {featuredRecipe.description || "A delicious recipe from our chef community, curated and approved for your kitchen."}
+                      </p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", marginBottom: "28px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <span style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Servings</span>
+                          <strong style={{ fontSize: "18px", color: "var(--text-main)" }}>{featuredRecipe.servings || 1}</strong>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <span style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Difficulty</span>
+                          <strong style={{ fontSize: "18px", color: "var(--text-main)" }}>{featuredRecipe.difficulty || "Medium"}</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                        <div style={{ width: "56px", height: "56px", borderRadius: "18px", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "20px", fontWeight: "700" }}>
+                          {featuredRecipe.chef?.name?.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase() || "CH"}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-main)" }}>{featuredRecipe.chef?.name || "Chef"}</div>
+                          <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Approved recipe for your daily inspiration</div>
+                        </div>
+                      </div>
+                      <button 
+                        className="btn-primary"
+                        style={{ padding: "14px 28px", borderRadius: "16px", fontSize: "14px" }}
+                        onClick={() => {
+                          setSelectedRecipe(featuredRecipe);
+                          setPage("recipe-detail");
+                        }}
+                      >
+                        View Recipe
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {trendingRecipes.length > 0 && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", gap: "16px" }}>
+                  <div>
+                    <div style={{ fontSize: "13px", color: "var(--primary)", fontWeight: "700", marginBottom: "8px" }}>Discover more</div>
+                    <h3 style={{ fontSize: "24px", fontWeight: "800", color: "var(--navy)" }}>More approved recipes from the chef community</h3>
+                  </div>
+                  <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>{filteredRecipes.length} approved recipes available</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
+                  {trendingRecipes.map(recipe => (
+                    <RecipeCard 
+                      key={recipe._id} 
+                      recipe={recipe} 
+                      onClick={(r) => {
+                        setSelectedRecipe(r);
+                        setPage("recipe-detail");
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ textAlign: "center", padding: "60px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)" }}>
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>🍽️</div>
+            <h3 style={{ fontSize: "20px", fontWeight: "700" }}>No recipes in this category</h3>
+            <p style={{ color: "var(--text-muted)", marginTop: "8px" }}>Try exploring a different taste or check back later!</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="sidebar-layout">
+      {/* SIDEBAR */}
+      <aside className="sidebar">
+        <div style={{ padding: "0 8px 32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "32px" }}>
+            <div style={{ width: "32px", height: "32px", background: "var(--primary)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", color: "#fff" }}>🍽</div>
+            <span className="serif" style={{ fontSize: "18px", fontWeight: "700", color: "var(--navy)" }}>RecipeNest</span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            {NAV.map(item => (
+              <button 
+                key={item.id} 
+                className={`sidebar-item ${activeNav === item.id ? "active" : ""}`} 
+                onClick={() => setActiveNav(item.id)}
+              >
+                <span style={{ fontSize: "18px" }}>{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: "auto", padding: "20px 8px 0", borderTop: "1px solid var(--border-light)" }}>
+          <button className="sidebar-item" style={{ marginBottom: "16px", width: "100%", background: "none", border: "none", cursor: "pointer" }} onClick={() => setIsSettingsOpen(true)}>
+            <span style={{ fontSize: "18px" }}>⚙️</span> Settings
+          </button>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", background: "var(--bg)", borderRadius: "var(--radius-md)", marginBottom: "16px", border: "1px solid var(--border-light)" }}>
+            <div className="sidebar-avatar" style={{ width: "40px", height: "40px", fontSize: "14px", fontWeight: "700", background: "var(--primary)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "10px", overflow: "hidden" }}>
+              {user?.avatar ? <img src={getImageUrl(user.avatar)} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : user?.name?.[0].toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-main)" }}>{user?.name || "User"}</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Home Cook</div>
+            </div>
+          </div>
+
+          <button className="logout-btn" onClick={onLogout}>
+            <span>🚪</span> Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* CONTENT */}
+      <main className="page-content" style={{ background: "var(--bg)", overflow: "hidden" }}>
+        <div className="page-header" style={{ marginBottom: "32px" }}>
+          <div>
+            <h1 className="page-title">
+              {activeNav === "feed" ? "Recipe Feed" : "My Profile"}
+            </h1>
+            <p className="page-sub">
+              {activeNav === "feed" ? "Trending recipes from the community" : "Manage your personal information"}
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px" }}>
+            <div style={{ 
+              width: "48px", 
+              height: "48px", 
+              border: "4px solid var(--border-light)", 
+              borderTop: "4px solid var(--primary)", 
+              borderRadius: "50%", 
+              animation: "spin 1s linear infinite",
+              margin: "0 auto 20px"
+            }} />
+            <p style={{ color: "var(--text-muted)", fontWeight: "500" }}>Whisking up some goodness...</p>
+          </div>
+        ) : error ? (
+          <div style={{ textAlign: "center", padding: "40px", color: "#ef4444", background: "rgba(239, 68, 68, 0.05)", borderRadius: "16px" }}>
+            {error}
+          </div>
+        ) : (
+          activeNav === "feed" ? renderFeed() : (
+            <div style={{ textAlign: "center", padding: "100px 0" }}>
+              <div style={{ width: "120px", height: "120px", borderRadius: "40px", background: "var(--primary)", color: "white", fontSize: "40px", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.1)" }}>
+                {user?.avatar ? <img src={getImageUrl(user.avatar)} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : user?.name?.[0].toUpperCase()}
+              </div>
+              <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--navy)" }}>{user?.name}</h2>
+              <p style={{ color: "var(--text-muted)", marginBottom: "32px" }}>{user?.email}</p>
+              
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "16px", maxWidth: "600px", margin: "0 auto" }}>
+                <div style={{ flex: 1, minWidth: "200px", padding: "20px", background: "var(--white)", borderRadius: "20px", border: "1px solid var(--border-light)" }}>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", marginBottom: "4px" }}>PHONE</div>
+                  <div style={{ fontWeight: "700" }}>{user?.phone || "Not provided"}</div>
+                </div>
+                <div style={{ flex: 1, minWidth: "200px", padding: "20px", background: "var(--white)", borderRadius: "20px", border: "1px solid var(--border-light)" }}>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", marginBottom: "4px" }}>ADDRESS</div>
+                  <div style={{ fontWeight: "700" }}>{user?.address || "Not provided"}</div>
+                </div>
+              </div>
+
+              <button 
+                className="btn-primary" 
+                style={{ marginTop: "40px", padding: "14px 40px" }}
+                onClick={() => setIsProfileOpen(true)}
+              >
+                Edit My Profile
+              </button>
+            </div>
+          )
+        )}
+      </main>
+
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        user={user} 
+      />
+
+      <ProfileUpdateModal 
+        isOpen={isProfileOpen} 
+        onClose={() => setIsProfileOpen(false)} 
+        user={user} 
+        onUpdate={(updated) => setUser(updated)} 
+      />
+    </div>
+  );
+}

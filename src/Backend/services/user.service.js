@@ -1,0 +1,413 @@
+const User = require("../models/user.models");
+const jwt = require("jsonwebtoken");
+const { deleteOldFile, getFileUrl } = require("../config/multer.config");
+const { JWT_SECRET, JWT_EXPIRES_IN } = require("../config/config");
+
+const generateToken = (payload) => jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+const registerUser = async (userData) => {
+  try {
+    const existingUser = await User.findOne({ email: userData.email });
+    if (existingUser) {
+      const error = new Error("User already exists with this email");
+      error.statusCode = 400;
+      console.error("Error in registerUser:", error);
+      throw error;
+    }
+
+    const user = new User({
+      name: userData.name,
+      email: userData.email,
+      password: userData.password,
+      role: userData.role || "user",
+    });
+
+    await user.save();
+
+    return {
+      success: true,
+      message: "User registered successfully",
+      data: { user },
+    };
+  } catch (error) {
+    console.error("Error in registerUser:", error.message);
+    throw error;
+  }
+};
+
+const loginUser = async (email, password) => {
+  try {
+    // Default Admin Bypass for development
+    if (email === "admin" && password === "admin") {
+      const adminUser = {
+        _id: "admin-id",
+        name: "System Admin",
+        email: "admin",
+        role: "admin",
+        isActive: true,
+      };
+      const token = generateToken({ id: adminUser._id, email: adminUser.email, role: adminUser.role });
+      return {
+        success: true,
+        message: "Admin Login successful",
+        data: {
+          user: adminUser,
+          token,
+        },
+      };
+    }
+
+    const user = await User.findOne({ email }).select("+password");
+
+    if (!user) {
+      const error = new Error("Invalid email or password");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    if (!user.isActive) {
+      const error = new Error("Your account has been deactivated");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      const error = new Error("Invalid email or password");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const token = user.generateToken();
+    const userObject = user.toObject();
+    delete userObject.password;
+
+    return {
+      success: true,
+      message: "Login successful",
+      data: { user: userObject, token },
+    };
+  } catch (error) {
+    console.error("Error in loginUser:", error.message);
+    throw error;
+  }
+};
+
+const getUserProfile = async (userId) => {
+  try {
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+    return { success: true, data: { user } };
+  } catch (error) {
+    console.error("Error in getUserProfile:", error.message);
+    throw error;
+  }
+};
+
+const updateUserProfile = async (userId, updateData) => {
+  try {
+    const allowedUpdates = ["name", "phone", "address", "avatar"];
+    const filteredData = {};
+    for (const key of allowedUpdates) {
+      if (updateData[key] !== undefined) {
+        filteredData[key] = updateData[key];
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(userId, filteredData, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
+
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return {
+      success: true,
+      message: "Profile updated successfully",
+      data: { user },
+    };
+  } catch (error) {
+    console.error("Error in updateUserProfile:", error.message);
+    throw error;
+  }
+};
+
+const getAllUsers = async (options = {}) => {
+  try {
+    const page = parseInt(options.page) || 1;
+    const limit = parseInt(options.limit) || 10;
+    const skip = (page - 1) * limit;
+    const query = options.includeInactive ? {} : { isActive: true };
+
+    const users = await User.find(query)
+      .select("-password")
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    const total = await User.countDocuments(query);
+
+    return {
+      success: true,
+      data: {
+        users,
+        pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      },
+    };
+  } catch (error) {
+    console.error("Error in getAllUsers:", error.message);
+    throw error;
+  }
+};
+
+const sendPasswordResetCode = async (email) => {
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      const error = new Error("Email address not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    user.passwordResetCode = code;
+    user.passwordResetExpires = new Date(Date.now() + 1000 * 60 * 15);
+    await user.save({ validateBeforeSave: false });
+
+    return {
+      success: true,
+      message: "Password reset code sent successfully",
+      data: { email: user.email },
+    };
+  } catch (error) {
+    console.error("Error in sendPasswordResetCode:", error.message);
+    throw error;
+  }
+};
+
+const verifyResetCode = async (email, code) => {
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      const error = new Error("Email address not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!user.passwordResetCode || !user.passwordResetExpires) {
+      const error = new Error("No reset code has been requested for this account");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (user.passwordResetExpires < new Date()) {
+      const error = new Error("Reset code has expired");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (user.passwordResetCode !== code) {
+      const error = new Error("Invalid reset code");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return {
+      success: true,
+      message: "Reset code verified successfully",
+      data: { email: user.email },
+    };
+  } catch (error) {
+    console.error("Error in verifyResetCode:", error.message);
+    throw error;
+  }
+};
+
+const resetPassword = async (email, code, newPassword) => {
+  try {
+    const user = await User.findOne({ email }).select("+password");
+    if (!user) {
+      const error = new Error("Email address not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!user.passwordResetCode || !user.passwordResetExpires) {
+      const error = new Error("No reset code has been requested for this account");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (user.passwordResetExpires < new Date()) {
+      const error = new Error("Reset code has expired");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (user.passwordResetCode !== code) {
+      const error = new Error("Invalid reset code");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    user.password = newPassword;
+    user.passwordResetCode = null;
+    user.passwordResetExpires = null;
+    await user.save();
+
+    return {
+      success: true,
+      message: "Password has been reset successfully",
+    };
+  } catch (error) {
+    console.error("Error in resetPassword:", error.message);
+    throw error;
+  }
+};
+
+const changePassword = async (userId, currentPassword, newPassword) => {
+  try {
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      const error = new Error("Current password is incorrect");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    return { success: true, message: "Password changed successfully" };
+  } catch (error) {
+    console.error("Error in changePassword:", error.message);
+    throw error;
+  }
+};
+
+const deactivateUser = async (userId) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isActive: false },
+      { new: true },
+    );
+
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return { success: true, message: "User deactivated successfully" };
+  } catch (error) {
+    console.error("Error in deactivateUser:", error.message);
+    throw error;
+  }
+};
+
+/**
+ * Update user's avatar
+ * @param {string} userId - User ID
+ * @param {Object} file - Uploaded file object from multer
+ * @returns {Object} Updated user with new avatar URL
+ */
+const updateAvatar = async (userId, file) => {
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Delete old avatar if exists (not the default one)
+    if (user.avatar) {
+      const oldFilename = user.avatar.split("/").pop();
+      deleteOldFile(oldFilename, "avatar");
+    }
+
+    // Update with new avatar URL
+    const avatarUrl = getFileUrl(file.filename, "avatar");
+    user.avatar = avatarUrl;
+    await user.save();
+
+    return {
+      success: true,
+      message: "Avatar updated successfully",
+      data: {
+        user,
+        avatarUrl,
+      },
+    };
+  } catch (error) {
+    console.error("Error in updateAvatar:", error.message);
+    throw error;
+  }
+};
+
+/**
+ * Delete user's avatar (reset to default)
+ * @param {string} userId - User ID
+ * @returns {Object} Success message
+ */
+const deleteAvatar = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Delete old avatar file if exists
+    if (user.avatar) {
+      const oldFilename = user.avatar.split("/").pop();
+      deleteOldFile(oldFilename, "avatar");
+    }
+
+    // Reset avatar to null (default)
+    user.avatar = null;
+    await user.save();
+
+    return {
+      success: true,
+      message: "Avatar removed successfully",
+      data: { user },
+    };
+  } catch (error) {
+    console.error("Error in deleteAvatar:", error.message);
+    throw error;
+  }
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+  sendPasswordResetCode,
+  verifyResetCode,
+  resetPassword,
+  getUserProfile,
+  updateUserProfile,
+  getAllUsers,
+  changePassword,
+  deactivateUser,
+  updateAvatar,
+  deleteAvatar,
+};
