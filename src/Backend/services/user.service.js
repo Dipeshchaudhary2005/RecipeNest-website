@@ -397,6 +397,95 @@ const deleteAvatar = async (userId) => {
   }
 };
 
+/**
+ * Follow a chef
+ * @param {string} userId - ID of the user who wants to follow
+ * @param {string} chefId - ID of the chef to be followed
+ */
+const followChef = async (userId, chefId) => {
+  try {
+    if (userId === chefId) {
+      const error = new Error("You cannot follow yourself");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const chef = await User.findById(chefId);
+    if (!chef || (chef.role !== "chef" && chef.role !== "admin")) {
+      const error = new Error("Chef not found or invalid role");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { following: chefId } },
+      { new: true }
+    ).select("-password");
+
+    return { success: true, message: "Chef followed successfully", data: { user } };
+  } catch (error) {
+    console.error("Error in followChef:", error.message);
+    throw error;
+  }
+};
+
+/**
+ * Unfollow a chef
+ * @param {string} userId - ID of the user who wants to unfollow
+ * @param {string} chefId - ID of the chef to be unfollowed
+ */
+const unfollowChef = async (userId, chefId) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { following: chefId } },
+      { new: true }
+    ).select("-password");
+
+    return { success: true, message: "Chef unfollowed successfully", data: { user } };
+  } catch (error) {
+    console.error("Error in unfollowChef:", error.message);
+    throw error;
+  }
+};
+
+/**
+ * Toggle favorite status of a recipe
+ * @param {string} userId - ID of the user
+ * @param {string} recipeId - ID of the recipe
+ */
+const toggleFavoriteRecipe = async (userId, recipeId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const isFavorite = user.favorites.includes(recipeId);
+    const update = isFavorite 
+      ? { $pull: { favorites: recipeId } } 
+      : { $addToSet: { favorites: recipeId } };
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      update,
+      { new: true }
+    ).select("-password");
+
+    return { 
+      success: true, 
+      message: isFavorite ? "Recipe removed from favorites" : "Recipe added to favorites",
+      data: { user: updatedUser, isFavorite: !isFavorite }
+    };
+  } catch (error) {
+    console.error("Error in toggleFavoriteRecipe:", error.message);
+    throw error;
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -410,4 +499,7 @@ module.exports = {
   deactivateUser,
   updateAvatar,
   deleteAvatar,
+  followChef,
+  unfollowChef,
+  toggleFavoriteRecipe,
 };

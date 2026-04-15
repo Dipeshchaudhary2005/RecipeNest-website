@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { adminAPI, recipeAPI, authAPI } from "../../services/api";
+import { getImageUrl } from "../../utils";
 
 const NAV = [
   { icon: "ri-dashboard-3-line", label: "Overview", id: "dashboard" },
@@ -68,7 +69,7 @@ export default function AdminDashboardPage({ setPage, onLogout }) {
 
       {/* Main Content */}
       <main style={{ flex: 1, padding: "48px 60px" }}>
-        {activeNav === "dashboard" && <AdminOverview />}
+        {activeNav === "dashboard" && <AdminOverview setActiveNav={setActiveNav} />}
         {activeNav === "users" && <AdminUsers />}
         {activeNav === "recipes" && <AdminRecipes />}
         {activeNav === "analytics" && <AdminAnalytics />}
@@ -78,33 +79,51 @@ export default function AdminDashboardPage({ setPage, onLogout }) {
   );
 }
 
-function AdminOverview() {
+function AdminOverview({ setActiveNav }) {
   const [applications, setApplications] = useState([]);
+  const [stats, setStats] = useState({ totalRecipes: 0, totalUsers: 0, newChefs: 0, engagement: 0, pendingRecipes: 0 });
+  // eslint-disable-next-line no-unused-vars
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadApplications();
+    loadDashboardData();
   }, []);
 
-  const loadApplications = async () => {
-    // Mock data for applications
-    setApplications([
-      { id: 1, name: "John Doe", time: "2 hours ago", status: "pending" },
-      { id: 2, name: "Jane Smith", time: "5 hours ago", status: "pending" },
-      { id: 3, name: "Mike Johnson", time: "1 day ago", status: "pending" },
-      { id: 4, name: "Sarah Williams", time: "2 days ago", status: "pending" }
-    ]);
-  };
-
-  const handleReviewApplication = (appId) => {
-    alert(`Review application for #${appId}`);
-    // In real app, this would open a modal for review
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [pendingRes, statsRes] = await Promise.all([
+        adminAPI.getPendingRecipes(),
+        adminAPI.getStats()
+      ]);
+      
+      if (pendingRes.data.success) {
+        const pendingData = pendingRes.data.data;
+        const pendingList = Array.isArray(pendingData) ? pendingData : pendingData.recipes || [];
+        setApplications(pendingList.map(r => ({
+          id: r._id,
+          name: r.chef?.name || "Chef",
+          title: r.title,
+          time: new Date(r.createdAt).toLocaleDateString(),
+          status: r.status || "pending"
+        })));
+      }
+      
+      if (statsRes.data.success) {
+        setStats(statsRes.data.data);
+      }
+    } catch (err) {
+      console.error("Dashboard load error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const statsList = [
-    { label: "Active Users", value: "12.5k", growth: "+12%", icon: "ri-group-line", color: "#3b82f6" },
-    { label: "Daily Recipes", value: "450", growth: "+5%", icon: "ri-restaurant-2-line", color: "#10b981" },
-    { label: "New Chefs", value: "24", growth: "+2", icon: "ri-user-star-line", color: "#f59e0b" },
-    { label: "Engagement", value: "94%", growth: "+3%", icon: "ri-heart-line", color: "var(--primary)" },
+    { label: "Total Users", value: stats.totalUsers, growth: "+0%", icon: "ri-group-line", color: "#3b82f6" },
+    { label: "Live Recipes", value: stats.totalRecipes, growth: "+0%", icon: "ri-restaurant-2-line", color: "#10b981" },
+    { label: "New Chefs", value: stats.newChefs, growth: `+${stats.newChefs}`, icon: "ri-user-star-line", color: "#f59e0b" },
+    { label: "Pending Review", value: stats.pendingRecipes, growth: stats.pendingRecipes.toString(), icon: "ri-heart-line", color: "var(--primary)" },
   ];
 
   return (
@@ -131,7 +150,7 @@ function AdminOverview() {
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px" }}>
         <div style={{ background: "var(--white)", padding: "24px", borderRadius: "24px", border: "1px solid var(--border-light)" }}>
-          <h3 style={{ fontSize: "16px", fontWeight: "800", marginBottom: "20px", color: "var(--navy)" }}>Recent Applications</h3>
+          <h3 style={{ fontSize: "16px", fontWeight: "800", marginBottom: "20px", color: "var(--navy)" }}>Recently Created Recipes</h3>
           {applications.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>No recent applications</div>
           ) : (
@@ -142,12 +161,12 @@ function AdminOverview() {
                     {app.name.charAt(0)}
                   </div>
                   <div>
-                    <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)" }}>{app.name}</div>
-                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Submitted {app.time}</div>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)" }}>{app.title}</div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>By {app.name} • {app.time}</div>
                   </div>
                 </div>
                 <button 
-                  onClick={() => handleReviewApplication(app.id)}
+                  onClick={() => setActiveNav("recipes")}
                   className="btn-primary" 
                   style={{ background: "var(--primary)", border: "none", padding: "6px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", color: "#fff", cursor: "pointer" }}
                 >
@@ -218,14 +237,7 @@ function AdminUsers() {
       }
     } catch (err) {
       console.error("Error fetching users:", err);
-      // Mock data for demo
-      setUsers([
-        { id: 1, name: "John Doe", email: "john@example.com", role: "chef", status: "Active", statusType: "active", avatar: "J" },
-        { id: 2, name: "Jane Smith", email: "jane@example.com", role: "user", status: "Active", statusType: "active", avatar: "J" },
-        { id: 3, name: "Mike Johnson", email: "mike@example.com", role: "chef", status: "Inactive", statusType: "inactive", avatar: "M" },
-        { id: 4, name: "Sarah Williams", email: "sarah@example.com", role: "admin", status: "Active", statusType: "active", avatar: "S" },
-        { id: 5, name: "Tom Brown", email: "tom@example.com", role: "user", status: "Active", statusType: "active", avatar: "T" },
-      ]);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -663,13 +675,7 @@ function AdminRecipes() {
       }
     } catch (err) {
       console.error("Error fetching recipes:", err);
-      // Mock data for demo
-      setRecipes([
-        { id: 1, title: "Spaghetti Carbonara", chef: "John Doe", image: "https://via.placeholder.com/300x200", tag: "Medium", status: "Pending Review", description: "Classic Italian pasta" },
-        { id: 2, title: "Chocolate Cake", chef: "Jane Smith", image: "https://via.placeholder.com/300x200", tag: "Easy", status: "Pending Review", description: "Delicious chocolate dessert" },
-        { id: 3, title: "Grilled Salmon", chef: "Mike Johnson", image: "https://via.placeholder.com/300x200", tag: "Hard", status: "Live", description: "Fresh grilled salmon" },
-        { id: 4, title: "Caesar Salad", chef: "Sarah Williams", image: "https://via.placeholder.com/300x200", tag: "Easy", status: "Pending Review", description: "Classic salad recipe" },
-      ]);
+      setRecipes([]);
     } finally {
       setLoading(false);
     }
@@ -775,7 +781,7 @@ function AdminRecipes() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "24px" }}>
           {filteredRecipes.map(r => (
             <div key={r.id} style={{ background: "var(--white)", borderRadius: "20px", border: "1px solid var(--border-light)", overflow: "hidden", transition: "var(--transition)", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
-              <img src={r.image} alt={r.title} style={{ width: "100%", height: "160px", objectFit: "cover" }} />
+              <img src={getImageUrl(r.image)} alt={r.title} style={{ width: "100%", height: "160px", objectFit: "cover" }} />
               <div style={{ padding: "20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", alignItems: "center" }}>
                   <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--primary)", textTransform: "uppercase" }}>{r.tag}</span>
@@ -822,10 +828,10 @@ function AdminRecipes() {
 
 function AdminAnalytics() {
   const [analyticsData, setAnalyticsData] = useState({
-    totalRecipes: 450,
-    totalUsers: 12500,
-    newChefs: 24,
-    engagement: 94
+    totalRecipes: 0,
+    totalUsers: 0,
+    newChefs: 0,
+    engagement: 0
   });
 
   useEffect(() => {

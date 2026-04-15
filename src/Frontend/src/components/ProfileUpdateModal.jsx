@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { userAPI } from "../services/api";
+import { getImageUrl } from "../utils";
 
 export default function ProfileUpdateModal({ isOpen, onClose, user, onUpdate }) {
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,7 @@ export default function ProfileUpdateModal({ isOpen, onClose, user, onUpdate }) 
         phone: user.phone || "",
         address: user.address || "",
       });
-      setAvatarPreview(user.avatar || null);
+      setAvatarPreview(getImageUrl(user.avatar) || null);
     }
   }, [user, isOpen]);
 

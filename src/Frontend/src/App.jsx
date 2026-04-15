@@ -90,8 +90,7 @@ export default function App() {
     setHistory([]);
   };
 
-  // Check if current page is an Auth Modal
-  const isAuthModal = ["login", "signup", "forgot-password"].includes(page);
+  // Sync User state to localStorage
   
   // Dashboard routing helper
   const renderDashboard = () => {
@@ -128,15 +127,15 @@ export default function App() {
 
       {/* Page Routing */}
       {page === "home" && (
-        <HomePage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} search={search} setSearch={setSearch} />
+        <HomePage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} search={search} setSearch={setSearch} user={user} />
       )}
 
       {page === "recipe-detail" && (
-        <RecipeDetailPage recipe={selectedRecipe} setPage={navigateTo} onBack={handleBack} />
+        <RecipeDetailPage recipe={selectedRecipe} setPage={navigateTo} onBack={handleBack} user={user} setUser={setUser} />
       )}
 
       {page === "explore-recipes" && (
-        <ExploreRecipesPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} />
+        <ExploreRecipesPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} user={user} setUser={setUser} />
       )}
 
       {page.includes("-dashboard") && renderDashboard()}

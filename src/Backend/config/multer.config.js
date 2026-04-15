@@ -132,8 +132,14 @@ const uploadRecipeImage = createMulterConfig(UPLOAD_DIRS.recipes);
  * 7. DELETE OLD FILE
  * ============================================
  */
-const deleteOldFile = (filename, type) => {
-  if (!filename) return;
+const deleteOldFile = async (fileIdentifier, type) => {
+  if (!fileIdentifier) return;
+
+  // If it's a URL (e.g., /uploads/recipes/filename.jpg), extract the filename
+  let filename = fileIdentifier;
+  if (fileIdentifier.includes("/uploads/")) {
+    filename = fileIdentifier.split("/").pop();
+  }
 
   const dir =
     type === "avatar"
@@ -142,13 +148,15 @@ const deleteOldFile = (filename, type) => {
 
   const filePath = path.join(dir, filename);
 
-  if (fs.existsSync(filePath)) {
-    try {
-      fs.unlinkSync(filePath);
+  try {
+    if (fs.existsSync(filePath)) {
+      await fs.promises.unlink(filePath);
       console.log(`🗑️ Deleted file: ${filePath}`);
-    } catch (err) {
-      console.error(`Error deleting file: ${err.message}`);
+    } else {
+      console.warn(`⚠️ File not found for deletion: ${filePath}`);
     }
+  } catch (err) {
+    console.error(`Error deleting file: ${err.message}`);
   }
 };
 

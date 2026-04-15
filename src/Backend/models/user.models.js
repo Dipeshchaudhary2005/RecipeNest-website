@@ -57,6 +57,18 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    following: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    favorites: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Recipe",
+      },
+    ],
   },
   {
     timestamps: true,

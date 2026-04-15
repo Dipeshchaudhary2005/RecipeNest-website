@@ -43,15 +43,25 @@ export default function Navbar({ setPage, user, onLogout, onBack, showBack, sear
       {/* Center Group: Links & Search */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "40px" }}>
         <div className="top-nav-links" style={{ display: "flex", gap: "28px" }}>
-          {["Explore Recipes", "About", "Contact", "Community"].map(link => (
+          {[
+            { label: "Explore Recipes", page: "explore-recipes" },
+            { label: "About", id: "about-section" },
+            { label: "Contact", id: "footer-contact" },
+            { label: "Community", id: "community-stats" }
+          ].map(link => (
             <button 
-              key={link}
+              key={link.label}
               className="top-nav-link" 
               onClick={() => {
-                if (link === "Explore Recipes") {
-                  setPage("explore-recipes");
-                } else {
+                if (link.page) {
+                  setPage(link.page);
+                } else if (link.id) {
                   setPage("home");
+                  // Wait for home page to render then scroll
+                  setTimeout(() => {
+                    const el = document.getElementById(link.id);
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                  }, 100);
                 }
               }} 
               style={{ 
@@ -67,7 +77,7 @@ export default function Navbar({ setPage, user, onLogout, onBack, showBack, sear
               onMouseEnter={(e) => e.target.style.color = "var(--primary)"}
               onMouseLeave={(e) => e.target.style.color = "var(--text-muted)"}
             >
-              {link}
+              {link.label}
             </button>
           ))}
         </div>

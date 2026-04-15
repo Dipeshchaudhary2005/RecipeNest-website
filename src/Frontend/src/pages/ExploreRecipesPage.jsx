@@ -2,103 +2,7 @@ import { useState, useEffect } from "react";
 import { recipeAPI } from "../services/api";
 import RecipeCard from "../components/RecipeCard";
 
-const SAMPLE_RECIPES = [
-  {
-    _id: "1",
-    title: "Turmeric Lemon Chicken Bowl",
-    description: "Juicy grilled chicken over herbed quinoa with a zesty lemon drizzle.",
-    image: "https://images.unsplash.com/photo-1604908177520-e0f7b16367b9?auto=format&fit=crop&w=1000&q=80",
-    chef: "Amina Patel",
-    difficulty: "Easy",
-    time: "35m",
-    servings: 2,
-    tag: "Healthy",
-    tagColor: "#22c55e",
-    rating: 4.8,
-    reviews: 135,
-    prepTime: "15 min",
-    cookTime: "20 min",
-    calories: "420 kcal",
-    cuisine: "Mediterranean",
-    ingredients: [
-      { name: "Chicken breast", note: "2 pieces, cut into strips" },
-      { name: "Turmeric", note: "1 tsp" },
-      { name: "Lemon juice", note: "2 tbsp" },
-      { name: "Quinoa", note: "1 cup cooked" },
-      { name: "Olive oil", note: "1 tbsp" }
-    ],
-    steps: [
-      { title: "Marinate chicken", body: "Mix chicken with turmeric, lemon juice, olive oil, salt, and pepper. Let sit 10 minutes.", hasImage: false },
-      { title: "Cook quinoa", body: "Boil quinoa in salted water until fluffy, then fluff with fork.", hasImage: false },
-      { title: "Grill chicken", body: "Pan-sear chicken for 6 min each side until golden and cooked through.", hasImage: false },
-      { title: "Assemble bowl", body: "Divide quinoa, top with chicken and fresh herbs, drizzle lemon.", hasImage: false }
-    ]
-  },
-  {
-    _id: "2",
-    title: "Spicy Sriracha Veggie Stir Fry",
-    description: "Colorful vegetables stir fry with homemade spicy sriracha sauce.",
-    image: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?auto=format&fit=crop&w=1000&q=80",
-    chef: "Kai Lee",
-    difficulty: "Medium",
-    time: "30m",
-    servings: 3,
-    tag: "Vegan",
-    tagColor: "#f97316",
-    rating: 4.7,
-    reviews: 98,
-    prepTime: "12 min",
-    cookTime: "18 min",
-    calories: "360 kcal",
-    cuisine: "Asian",
-    ingredients: [
-      { name: "Broccoli", note: "1 cup florets" },
-      { name: "Bell pepper", note: "1 red, sliced" },
-      { name: "Sriracha", note: "2 tbsp" },
-      { name: "Soy sauce", note: "2 tbsp" },
-      { name: "Sesame oil", note: "1 tbsp" }
-    ],
-    steps: [
-      { title: "Prep veggies", body: "Chop all vegetables evenly.", hasImage: false },
-      { title: "Make sauce", body: "Whisk sriracha, soy, honey, and a touch of water.", hasImage: false },
-      { title: "Stir fry", body: "Heat oil, cook veggies until tender-crisp, add sauce and toss.", hasImage: false },
-      { title: "Serve", body: "Garnish with sesame and scallions over rice.", hasImage: false }
-    ]
-  },
-  {
-    _id: "3",
-    title: "Chocolate Fig Overnight Oats",
-    description: "Decadent, no-cook breakfast that’s ready in the morning with rich cocoa flavor.",
-    image: "https://images.unsplash.com/photo-1505253213478-6e5ce779fddf?auto=format&fit=crop&w=1000&q=80",
-    chef: "Nina Gómez",
-    difficulty: "Easy",
-    time: "10m",
-    servings: 1,
-    tag: "Breakfast",
-    tagColor: "#eab308",
-    rating: 4.9,
-    reviews: 210,
-    prepTime: "10 min",
-    cookTime: "0 min",
-    calories: "310 kcal",
-    cuisine: "Global",
-    ingredients: [
-      { name: "Rolled oats", note: "1/2 cup" },
-      { name: "Unsweetened cocoa", note: "1 tbsp" },
-      { name: "Milk", note: "3/4 cup" },
-      { name: "Maple syrup", note: "1 tbsp" },
-      { name: "Dried figs", note: "2, chopped" }
-    ],
-    steps: [
-      { title: "Mix base", body: "Combine oats, cocoa, milk, and maple syrup in jar.", hasImage: false },
-      { title: "Add figs", body: "Stir in chopped figs, seal jar.", hasImage: false },
-      { title: "Refrigerate", body: "Chill overnight.", hasImage: false },
-      { title: "Finish", body: "Top with fresh berries before serving.", hasImage: false }
-    ]
-  }
-];
-
-export default function ExploreRecipesPage({ setPage, setSelectedRecipe }) {
+export default function ExploreRecipesPage({ setPage, setSelectedRecipe, user, setUser }) {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -108,33 +12,21 @@ export default function ExploreRecipesPage({ setPage, setSelectedRecipe }) {
 
   useEffect(() => {
     fetchRecipes();
-
-    const onRecipeCreated = (event) => {
-      const recipe = event.detail;
-      if (recipe && recipe._id) {
-        setRecipes(prev => [recipe, ...prev.filter(r => r._id !== recipe._id)]);
-      }
-    };
-
-    window.addEventListener("recipe-created", onRecipeCreated);
-
-    return () => {
-      window.removeEventListener("recipe-created", onRecipeCreated);
-    };
   }, []);
 
   const fetchRecipes = async () => {
     try {
       setLoading(true);
       const response = await recipeAPI.getAll();
-      if (response.data.success && Array.isArray(response.data.data) && response.data.data.length > 0) {
-        setRecipes(response.data.data);
+      if (response.data.success) {
+        const data = response.data.data;
+        setRecipes(Array.isArray(data) ? data : data.recipes || []);
       } else {
-        setRecipes(SAMPLE_RECIPES);
+        setRecipes([]);
       }
     } catch (err) {
       console.error("Error fetching recipes:", err);
-      setRecipes(SAMPLE_RECIPES);
+      setRecipes([]);
     } finally {
       setLoading(false);
     }
@@ -233,6 +125,9 @@ export default function ExploreRecipesPage({ setPage, setSelectedRecipe }) {
               <RecipeCard 
                 key={recipe._id} 
                 recipe={recipe} 
+                user={user}
+                setUser={setUser}
+                setPage={setPage}
                 onClick={() => {
                   setSelectedRecipe(recipe);
                   setPage("recipe-detail");

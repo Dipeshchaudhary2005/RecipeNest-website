@@ -135,6 +135,12 @@ const RecipeSchema = new mongoose.Schema(
       default: "Draft",
     },
 
+    rejectionReason: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     // Rating and reviews
     rating: {
       type: Number,

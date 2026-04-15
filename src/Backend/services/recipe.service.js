@@ -28,7 +28,7 @@ const getAllRecipes = async (query = {}) => {
     const skip = (page - 1) * limit;
 
     // Build filter object
-    const filter = { status: "Live" }; // Default to live recipes
+    const filter = { status: query.status || "Live" }; // Default to live recipes if no status provided
 
     if (query.tag) {
       filter.tag = query.tag;
@@ -107,11 +107,11 @@ const createRecipe = async (recipeData, files) => {
   try {
     // Handle file uploads
     if (files && files.image && files.image[0]) {
-      recipeData.image = getFileUrl(files.image[0].filename);
+      recipeData.image = getFileUrl(files.image[0].filename, "recipe");
     }
 
     if (files && files.stepImages) {
-      recipeData.stepImages = files.stepImages.map(file => getFileUrl(file.filename));
+      recipeData.stepImages = files.stepImages.map(file => getFileUrl(file.filename, "recipe"));
     }
 
     // Create recipe
@@ -149,19 +149,19 @@ const updateRecipe = async (id, updateData, files, userId) => {
     if (files && files.image && files.image[0]) {
       // Delete old image if exists
       if (existingRecipe.image) {
-        await deleteOldFile(existingRecipe.image);
+        await deleteOldFile(existingRecipe.image, "recipe");
       }
-      updateData.image = getFileUrl(files.image[0].filename);
+      updateData.image = getFileUrl(files.image[0].filename, "recipe");
     }
 
     if (files && files.stepImages) {
       // Delete old step images
       if (existingRecipe.stepImages && existingRecipe.stepImages.length > 0) {
         for (const image of existingRecipe.stepImages) {
-          await deleteOldFile(image);
+          await deleteOldFile(image, "recipe");
         }
       }
-      updateData.stepImages = files.stepImages.map(file => getFileUrl(file.filename));
+      updateData.stepImages = files.stepImages.map(file => getFileUrl(file.filename, "recipe"));
     }
 
     // Update recipe
@@ -197,12 +197,12 @@ const deleteRecipe = async (id, userId) => {
 
     // Delete associated files
     if (recipe.image) {
-      await deleteOldFile(recipe.image);
+      await deleteOldFile(recipe.image, "recipe");
     }
 
     if (recipe.stepImages && recipe.stepImages.length > 0) {
       for (const image of recipe.stepImages) {
-        await deleteOldFile(image);
+        await deleteOldFile(image, "recipe");
       }
     }
 

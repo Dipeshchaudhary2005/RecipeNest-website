@@ -310,6 +310,33 @@ const deleteAvatar = async (req, res) => {
   }
 };
 
+const followChef = async (req, res) => {
+  try {
+    const result = await userService.followChef(req.user._id, req.params.id);
+    res.status(200).json(result);
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+const unfollowChef = async (req, res) => {
+  try {
+    const result = await userService.unfollowChef(req.user._id, req.params.id);
+    res.status(200).json(result);
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+const toggleFavorite = async (req, res) => {
+  try {
+    const result = await userService.toggleFavoriteRecipe(req.user._id, req.params.id);
+    res.status(200).json(result);
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -326,4 +353,7 @@ module.exports = {
   logout,
   updateAvatar,
   deleteAvatar,
+  followChef,
+  unfollowChef,
+  toggleFavorite,
 };

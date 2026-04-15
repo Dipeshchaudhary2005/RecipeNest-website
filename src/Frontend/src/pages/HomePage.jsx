@@ -1,36 +1,52 @@
-import { useEffect } from "react";
-import axios from "axios";
+import { useState, useEffect } from "react";
+import { recipeAPI } from "../services/api";
+import RecipeCard from "../components/RecipeCard";
 
-const API_BASE_URL = "http://localhost:8080/api";
-
-export default function HomePage({ setPage, setSelectedRecipe, search, setSearch }) {
+export default function HomePage({ setPage, setSelectedRecipe, search, setSearch, user }) {
+  const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchRecipes();
 
     const onRecipeCreated = (event) => {
-      // Recipe created logic removed as recipes state is unused
+      const newRecipe = event.detail;
+      setRecipes(prev => [newRecipe, ...prev]);
     };
 
     window.addEventListener("recipe-created", onRecipeCreated);
-
-    return () => {
-      window.removeEventListener("recipe-created", onRecipeCreated);
-    };
+    return () => window.removeEventListener("recipe-created", onRecipeCreated);
   }, []);
 
   const fetchRecipes = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/recipes`);
+      setLoading(true);
+      const response = await recipeAPI.getAll({ limit: 6 });
       if (response.data.success) {
-        // Recipes set removed as requested by cleanup
+        const data = response.data.data;
+        setRecipes(data.recipes || []);
       }
     } catch (err) {
       console.error("Error fetching recipes:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // FEATURED_SAMPLES removed as unused
+  const handleGetStarted = () => {
+    if (!user) {
+      setPage("login");
+      return;
+    }
+
+    // Redirect logged-in users to their dashboard
+    switch (user.role) {
+      case "admin": setPage("admin-dashboard"); break;
+      case "chef": setPage("chef-dashboard"); break;
+      case "user": setPage("user-dashboard"); break;
+      default: setPage("explore-recipes");
+    }
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
@@ -76,7 +92,7 @@ export default function HomePage({ setPage, setSelectedRecipe, search, setSearch
             Discover delicious recipes from talented chefs around the world. Cook with confidence and create amazing meals.
           </p>
           <div style={{ display: "flex", gap: "16px", justifyContent: "center" }}>
-            <button className="btn-primary" onClick={() => setPage("signup")}>Get Started</button>
+            <button className="btn-primary" onClick={handleGetStarted}>Get Started</button>
             <button 
               className="btn-secondary" 
               style={{ 
@@ -85,9 +101,9 @@ export default function HomePage({ setPage, setSelectedRecipe, search, setSearch
                 borderColor: "rgba(255, 255, 255, 0.2)",
                 backdropFilter: "blur(4px)"
               }} 
-              onClick={() => setPage("login")}
+              onClick={() => setPage("explore-recipes")}
             >
-              Sign In
+              Explore Recipes
             </button>
           </div>
         </div>
@@ -97,11 +113,14 @@ export default function HomePage({ setPage, setSelectedRecipe, search, setSearch
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "60px 24px 100px" }}>
         
         {/* Engagement Stats Section */}
-        <div style={{ 
+        <div id="community-stats" style={{ 
           display: "grid", 
           gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", 
           gap: "24px", 
-          marginBottom: "80px" 
+          marginBottom: "80px",
+          marginTop: "-80px",
+          position: "relative",
+          zIndex: 2
         }}>
           {[
             { label: "Elite Chefs", value: "850+", icon: "👨‍🍳", sub: "Verified professionals" },
@@ -114,7 +133,7 @@ export default function HomePage({ setPage, setSelectedRecipe, search, setSearch
               borderRadius: "var(--radius-lg)", 
               border: "1px solid var(--border-light)",
               textAlign: "center",
-              boxShadow: "var(--shadow-sm)"
+              boxShadow: "var(--shadow-md)"
             }}>
               <div style={{ fontSize: "32px", marginBottom: "16px" }}>{stat.icon}</div>
               <div style={{ fontSize: "28px", fontWeight: "900", color: "var(--navy)", marginBottom: "4px" }}>{stat.value}</div>
@@ -124,13 +143,58 @@ export default function HomePage({ setPage, setSelectedRecipe, search, setSearch
           ))}
         </div>
 
+        {/* Latest Recipes Grid */}
+        <div style={{ marginBottom: "60px" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: "40px" }}>
+            <div>
+              <h2 className="serif" style={{ fontSize: "36px", fontWeight: "900", color: "var(--navy)", marginBottom: "8px" }}>Latest Recipes</h2>
+              <p style={{ color: "var(--text-muted)", fontSize: "16px" }}>Freshly published dishes from our global community.</p>
+            </div>
+            <button 
+              onClick={() => setPage("explore-recipes")}
+              style={{ background: "none", border: "none", color: "var(--primary)", fontWeight: "700", fontSize: "15px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}
+            >
+              See All Recipes <span style={{ fontSize: "20px" }}>→</span>
+            </button>
+          </div>
+
+          {loading ? (
+             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "32px" }}>
+               {[1,2,3].map(i => (
+                 <div key={i} style={{ height: "400px", background: "var(--border-light)", borderRadius: "24px", opacity: 0.5, animation: "pulse 1.5s infinite" }} />
+               ))}
+             </div>
+          ) : recipes.length > 0 ? (
+            <div style={{ 
+              display: "grid", 
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", 
+              gap: "32px" 
+            }}>
+              {recipes.map(recipe => (
+                <RecipeCard 
+                  key={recipe._id} 
+                  recipe={recipe} 
+                  onClick={() => {
+                    setSelectedRecipe(recipe);
+                    setPage("recipe-detail");
+                  }} 
+                />
+              ))}
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "80px 0", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: "18px" }}>No recipes found yet. Check back soon!</p>
+            </div>
+          )}
+        </div>
+
       </main>
 
       {/* Premium Footer */}
-      <footer style={{ background: "var(--navy-deep)", padding: "100px 40px 40px", color: "#fff" }}>
+      <footer id="footer-contact" style={{ background: "var(--navy-deep)", padding: "100px 40px 40px", color: "#fff" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "60px", marginBottom: "80px" }}>
-            <div style={{ gridColumn: "span 2" }}>
+            <div id="about-section" style={{ gridColumn: "span 2" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "24px" }}>
                 <div style={{ width: "32px", height: "32px", background: "var(--primary)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🍽</div>
                 <span className="serif" style={{ fontSize: "24px", fontWeight: "700" }}>RecipeNest</span>
@@ -149,7 +213,18 @@ export default function HomePage({ setPage, setSelectedRecipe, search, setSearch
                 <ul style={{ listStyle: "none" }}>
                   {col.links.map(link => (
                     <li key={link} style={{ marginBottom: "12px" }}>
-                      <button style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: "14px", padding: 0 }}>{link}</button>
+                      <button 
+                        onClick={() => {
+                          if (link === "Explore" || link === "Categories") setPage("explore-recipes");
+                          if (link === "About Us") document.getElementById("about-section")?.scrollIntoView({ behavior: "smooth" });
+                          if (link === "Contact") document.getElementById("footer-contact")?.scrollIntoView({ behavior: "smooth" });
+                        }}
+                        style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: "14px", padding: 0, cursor: "pointer", transition: "color 0.2s" }}
+                        onMouseEnter={(e) => e.target.style.color = "#fff"}
+                        onMouseLeave={(e) => e.target.style.color = "rgba(255,255,255,0.5)"}
+                      >
+                        {link}
+                      </button>
                     </li>
                   ))}
                 </ul>

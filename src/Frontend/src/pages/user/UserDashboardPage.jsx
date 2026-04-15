@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { recipeAPI } from "../../services/api";
+import { recipeAPI, userAPI } from "../../services/api";
 import RecipeCard from "../../components/RecipeCard";
 import SettingsModal from "../../components/SettingsModal";
 import ProfileUpdateModal from "../../components/ProfileUpdateModal";
@@ -7,6 +7,7 @@ import { getImageUrl } from "../../utils";
 
 const NAV = [
   { icon: "🏠", label: "Feed", id: "feed" },
+  { icon: "❤️", label: "Favorites", id: "favorites" },
   { icon: "👤", label: "Profile", id: "profile" },
 ];
 
@@ -32,7 +33,8 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
       setLoading(true);
       const response = await recipeAPI.getAll({ status: "Live", limit: 50 });
       if (response.data.success) {
-        setRecipes(response.data.data);
+        const data = response.data.data;
+        setRecipes(Array.isArray(data) ? data : data.recipes || []);
       }
     } catch (err) {
       console.error("Error fetching feed:", err);
@@ -42,9 +44,11 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
     }
   };
 
-  const filteredRecipes = activeCategory === "All"
-    ? recipes
-    : recipes.filter(r => r.tag === activeCategory || r.cuisine === activeCategory);
+  const filteredRecipes = activeNav === "favorites"
+    ? recipes.filter(r => user?.favorites?.includes(r._id))
+    : activeCategory === "All"
+      ? recipes
+      : recipes.filter(r => r.tag === activeCategory || r.cuisine === activeCategory);
 
   const featuredRecipe = filteredRecipes[0];
   const trendingRecipes = filteredRecipes.slice(1);
@@ -119,19 +123,59 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
                         </div>
                         <div>
                           <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-main)" }}>{featuredRecipe.chef?.name || "Chef"}</div>
-                          <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Approved recipe for your daily inspiration</div>
+                          <div style={{ fontSize: "13px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "8px" }}>
+                            Approved recipe
+                            {user && featuredRecipe.chef && user._id !== (featuredRecipe.chef._id || featuredRecipe.chef) && (
+                              <button 
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const chefId = featuredRecipe.chef._id || featuredRecipe.chef;
+                                  const isFollowing = user.following?.includes(chefId);
+                                  try {
+                                    const res = isFollowing ? await userAPI.unfollowChef(chefId) : await userAPI.followChef(chefId);
+                                    if (res.data.success) setUser(res.data.data.user);
+                                  } catch (err) { console.error(err); }
+                                }}
+                                style={{ 
+                                  background: "none", border: "none", color: "var(--primary)", 
+                                  fontSize: "12px", fontWeight: "800", cursor: "pointer", padding: "0" 
+                                }}
+                              >
+                                • {user.following?.includes(featuredRecipe.chef._id || featuredRecipe.chef) ? "Following" : "Follow"}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <button 
-                        className="btn-primary"
-                        style={{ padding: "14px 28px", borderRadius: "16px", fontSize: "14px" }}
-                        onClick={() => {
-                          setSelectedRecipe(featuredRecipe);
-                          setPage("recipe-detail");
-                        }}
-                      >
-                        View Recipe
-                      </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <button 
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const res = await recipeAPI.toggleFavorite(featuredRecipe._id);
+                              if (res.data.success) setUser(res.data.data.user);
+                            } catch (err) { console.error(err); }
+                          }}
+                          style={{
+                            width: "48px", height: "48px", borderRadius: "16px", border: "1px solid var(--border-light)",
+                            background: "var(--white)", color: user?.favorites?.includes(featuredRecipe._id) ? "var(--primary)" : "var(--text-muted)",
+                            fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                            transition: "var(--transition)", boxShadow: "var(--shadow-sm)"
+                          }}
+                        >
+                          {user?.favorites?.includes(featuredRecipe._id) ? "❤️" : "🤍"}
+                        </button>
+                        <button 
+                          className="btn-primary"
+                          style={{ padding: "14px 28px", borderRadius: "16px", fontSize: "14px" }}
+                          onClick={() => {
+                            setSelectedRecipe(featuredRecipe);
+                            setPage("recipe-detail");
+                          }}
+                        >
+                          View Recipe
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -152,6 +196,9 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
                     <RecipeCard 
                       key={recipe._id} 
                       recipe={recipe} 
+                      user={user}
+                      setUser={setUser}
+                      setPage={setPage}
                       onClick={(r) => {
                         setSelectedRecipe(r);
                         setPage("recipe-detail");
@@ -223,10 +270,10 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
         <div className="page-header" style={{ marginBottom: "32px" }}>
           <div>
             <h1 className="page-title">
-              {activeNav === "feed" ? "Recipe Feed" : "My Profile"}
+              {activeNav === "feed" ? "Recipe Feed" : activeNav === "favorites" ? "Saved Recipes" : "My Profile"}
             </h1>
             <p className="page-sub">
-              {activeNav === "feed" ? "Trending recipes from the community" : "Manage your personal information"}
+              {activeNav === "feed" ? "Trending recipes from the community" : activeNav === "favorites" ? "Recipes you've favorited for later" : "Manage your personal information"}
             </p>
           </div>
         </div>
@@ -249,7 +296,7 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
             {error}
           </div>
         ) : (
-          activeNav === "feed" ? renderFeed() : (
+          (activeNav === "feed" || activeNav === "favorites") ? renderFeed() : (
             <div style={{ textAlign: "center", padding: "100px 0" }}>
               <div style={{ width: "120px", height: "120px", borderRadius: "40px", background: "var(--primary)", color: "white", fontSize: "40px", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.1)" }}>
                 {user?.avatar ? <img src={getImageUrl(user.avatar)} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : user?.name?.[0].toUpperCase()}

@@ -38,7 +38,12 @@ export default function LoginPage({ setPage, setUser, onBack }) {
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError(err.response?.data?.message || "Login failed. Please check your credentials.");
+      const msg = err.response?.data?.message || "Login failed. Please check your credentials.";
+      if (msg.toLowerCase().includes("not found") || msg.toLowerCase().includes("invalid")) {
+        setError(`${msg} (Try signing up if you haven't yet!)`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }

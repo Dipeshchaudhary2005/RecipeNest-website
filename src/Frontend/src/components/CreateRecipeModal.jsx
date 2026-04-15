@@ -16,7 +16,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh }) {
     tip: "",
   });
   const [ingredients, setIngredients] = useState([{ name: "", note: "" }]);
-  const [steps, setSteps] = useState([{ title: "", body: "", order: 1 }]);
+  const [steps, setSteps] = useState([{ title: "", body: "", order: 1, hasImage: false, image: null, preview: null }]);
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
@@ -45,7 +45,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh }) {
     setIngredients(newIngredients);
   };
 
-  const addStep = () => setSteps([...steps, { title: "", body: "", order: steps.length + 1 }]);
+  const addStep = () => setSteps([...steps, { title: "", body: "", order: steps.length + 1, hasImage: false, image: null, preview: null }]);
   const removeStep = (index) => {
     const newSteps = steps.filter((_, i) => i !== index).map((step, i) => ({ ...step, order: i + 1 }));
     setSteps(newSteps);
@@ -53,6 +53,30 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh }) {
   const updateStep = (index, field, value) => {
     const newSteps = [...steps];
     newSteps[index][field] = value;
+    setSteps(newSteps);
+  };
+
+  const handleStepImageChange = (index, file) => {
+    if (file) {
+      const newSteps = [...steps];
+      newSteps[index].image = file;
+      newSteps[index].hasImage = true;
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const updatedSteps = [...steps];
+        updatedSteps[index].preview = reader.result;
+        setSteps(updatedSteps);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeStepImage = (index) => {
+    const newSteps = [...steps];
+    newSteps[index].image = null;
+    newSteps[index].preview = null;
+    newSteps[index].hasImage = false;
     setSteps(newSteps);
   };
 
@@ -65,11 +89,27 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh }) {
       const data = new FormData();
       Object.keys(formData).forEach(key => data.append(key, formData[key]));
       data.append("ingredients", JSON.stringify(ingredients));
-      data.append("steps", JSON.stringify(steps));
+      
+      // Map steps to remove internal state like preview and File objects before stringifying
+      const stepsToUpload = steps.map(s => ({
+        title: s.title,
+        body: s.body,
+        order: s.order,
+        hasImage: s.hasImage
+      }));
+      data.append("steps", JSON.stringify(stepsToUpload));
+      
       if (image) data.append("image", image);
       
-      // Default status to Live for immediate visibility
-      data.append("status", "Live");
+      // Append step images in correct order
+      steps.forEach(s => {
+        if (s.image) {
+          data.append("stepImages", s.image);
+        }
+      });
+      
+      // Default status to Pending Review for admin approval
+      data.append("status", "Pending Review");
 
       const response = await recipeAPI.create(data);
       if (response.data.success) {
@@ -291,7 +331,37 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh }) {
                     <button type="button" onClick={() => removeStep(idx)} style={{ color: "var(--text-muted)", background: "none", border: "none" }}>Remove</button>
                   </div>
                   <input placeholder="Title" value={step.title} onChange={(e) => updateStep(idx, "title", e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--border-light)", marginBottom: "8px" }} />
-                  <textarea placeholder="Description..." value={step.body} onChange={(e) => updateStep(idx, "body", e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--border-light)", resize: "none" }} />
+                  <textarea placeholder="Description..." value={step.body} onChange={(e) => updateStep(idx, "body", e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--border-light)", resize: "none", marginBottom: "12px" }} />
+                  
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    {step.preview ? (
+                      <div style={{ position: "relative", width: "80px", height: "80px", borderRadius: "8px", overflow: "hidden" }}>
+                        <img src={step.preview} alt={`Step ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <button 
+                          type="button" 
+                          onClick={() => removeStepImage(idx)}
+                          style={{ position: "absolute", top: "2px", right: "2px", background: "rgba(0,0,0,0.5)", color: "#fff", border: "none", borderRadius: "4px", width: "18px", height: "18px", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        type="button"
+                        onClick={() => document.getElementById(`step-img-${idx}`).click()}
+                        style={{ padding: "8px 16px", borderRadius: "8px", border: "1px dashed var(--border-light)", background: "#fff", fontSize: "12px", color: "var(--text-muted)", cursor: "pointer" }}
+                      >
+                        📷 Add Step Photo
+                      </button>
+                    )}
+                    <input 
+                      id={`step-img-${idx}`} 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={(e) => handleStepImageChange(idx, e.target.files[0])} 
+                      style={{ display: "none" }} 
+                    />
+                  </div>
                 </div>
               ))}
             </div>

@@ -6,6 +6,7 @@ const { NODE_ENV, CLIENT_URL } = require('./Backend/config/config');
 const { dbConnect } = require('./Backend/config/db');
 const userRoutes = require('./Backend/routes/user.routes');
 const recipeRoutes = require('./Backend/routes/recipe.routes');
+const adminRoutes = require('./Backend/routes/admin.routes');
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/users', userRoutes);
 app.use('/api/recipes', recipeRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use((req, res, next) => {
   res.status(404).json({ error: 'Route not found' });

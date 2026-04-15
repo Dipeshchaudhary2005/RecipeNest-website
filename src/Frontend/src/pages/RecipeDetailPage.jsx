@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { getImageUrl } from "../utils";
+import { useState, useEffect } from "react";
+import { getImageUrl, userAPI, recipeAPI } from "../services/api";
 
 const getInitials = (chef) => {
   const name = typeof chef === "string" ? chef : chef?.name || "Chef";
@@ -14,8 +14,21 @@ const getInitials = (chef) => {
   return initials || "CH";
 };
 
-export default function RecipeDetailPage({ recipe, setPage, onBack }) {
+export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUser }) {
   const [checkedIngredients, setCheckedIngredients] = useState({});
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [loading, setLoading] = useState({ follow: false, favorite: false });
+
+  useEffect(() => {
+    if (user && recipe && recipe.chef) {
+      const chefId = typeof recipe.chef === "string" ? null : recipe.chef._id;
+      if (chefId) {
+        setIsFollowing(user.following?.includes(chefId));
+      }
+      setIsFavorited(user.favorites?.includes(recipe._id));
+    }
+  }, [user, recipe]);
 
   if (!recipe) return null;
   const stepImages = recipe.stepImages || [];
@@ -57,6 +70,45 @@ export default function RecipeDetailPage({ recipe, setPage, onBack }) {
                   <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Published Oct 24, 2023</div>
                 </div>
               </div>
+
+              {/* Follow Button */}
+              {user && recipe.chef && user._id !== (recipe.chef._id || recipe.chef) && (
+                <button 
+                  onClick={async () => {
+                    if (loading.follow) return;
+                    setLoading(prev => ({ ...prev, follow: true }));
+                    try {
+                      const chefId = recipe.chef._id || recipe.chef;
+                      const response = isFollowing 
+                        ? await userAPI.unfollowChef(chefId)
+                        : await userAPI.followChef(chefId);
+                      if (response.data.success) {
+                        setIsFollowing(!isFollowing);
+                        setUser(response.data.data.user);
+                      }
+                    } catch (err) {
+                      console.error("Follow error:", err);
+                    } finally {
+                      setLoading(prev => ({ ...prev, follow: false }));
+                    }
+                  }}
+                  style={{
+                    padding: "6px 16px",
+                    borderRadius: "20px",
+                    border: isFollowing ? "1px solid var(--border-light)" : "none",
+                    background: isFollowing ? "var(--bg)" : "var(--primary)",
+                    color: isFollowing ? "var(--text-main)" : "#fff",
+                    fontSize: "12px",
+                    fontWeight: "800",
+                    cursor: loading.follow ? "not-allowed" : "pointer",
+                    transition: "var(--transition)",
+                    opacity: loading.follow ? 0.7 : 1
+                  }}
+                >
+                  {loading.follow ? "..." : isFollowing ? "Following" : "Follow"}
+                </button>
+              )}
+
               <div style={{ width: "1px", height: "24px", background: "#e2e8f0" }} />
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ color: "#f59e0b", fontSize: "18px" }}>★</span>
@@ -73,8 +125,35 @@ export default function RecipeDetailPage({ recipe, setPage, onBack }) {
                 style={{ width: "100%", height: "500px", objectFit: "cover", display: "block" }}
               />
               <div style={{ position: "absolute", bottom: "24px", right: "24px" }}>
-                <button className="btn-primary" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 20px" }}>
-                  <span>❤️</span> Save to Favorites
+                <button 
+                  onClick={async () => {
+                    if (!user) { setPage("login"); return; }
+                    if (loading.favorite) return;
+                    setLoading(prev => ({ ...prev, favorite: true }));
+                    try {
+                      const response = await recipeAPI.toggleFavorite(recipe._id);
+                      if (response.data.success) {
+                        setIsFavorited(!isFavorited);
+                        setUser(response.data.data.user);
+                      }
+                    } catch (err) {
+                      console.error("Favorite error:", err);
+                    } finally {
+                      setLoading(prev => ({ ...prev, favorite: false }));
+                    }
+                  }}
+                  className={isFavorited ? "btn-secondary" : "btn-primary"} 
+                  style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: "8px", 
+                    padding: "10px 20px",
+                    background: isFavorited ? "var(--white)" : "var(--primary)",
+                    color: isFavorited ? "var(--primary)" : "#fff",
+                    border: isFavorited ? "1px solid var(--primary)" : "none"
+                  }}
+                >
+                  <span>{isFavorited ? "❤️" : "🤍"}</span> {isFavorited ? "Saved" : "Save to Favorites"}
                 </button>
               </div>
             </div>
@@ -154,7 +233,12 @@ export default function RecipeDetailPage({ recipe, setPage, onBack }) {
                           <p style={{ fontSize: "16px", color: "#475569", lineHeight: "1.7", marginBottom: img ? "24px" : "0" }}>{step.body}</p>
                           {img && (
                             <div style={{ borderRadius: "var(--radius-md)", overflow: "hidden", boxShadow: "var(--shadow-md)" }}>
-                              <img src={img} alt={step.title} style={{ width: "100%", maxHeight: "300px", objectFit: "cover", display: "block" }} />
+                              <img 
+                                src={getImageUrl(img)} 
+                                alt={step.title} 
+                                onError={(e) => { e.currentTarget.src = "https://via.placeholder.com/600x300?text=Image+Unavailable"; }}
+                                style={{ width: "100%", maxHeight: "300px", objectFit: "cover", display: "block" }} 
+                              />
                             </div>
                           )}
                         </div>

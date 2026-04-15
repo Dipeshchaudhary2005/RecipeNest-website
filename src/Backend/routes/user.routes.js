@@ -103,6 +103,24 @@ router.delete("/avatar", protect, userController.deleteAvatar);
  */
 router.post("/change-password", protect, userController.changePassword);
 
+/**
+ * PUT /api/users/follow/:id
+ * Follow a chef
+ */
+router.put("/follow/:id", protect, userController.followChef);
+
+/**
+ * PUT /api/users/unfollow/:id
+ * Unfollow a chef
+ */
+router.put("/unfollow/:id", protect, userController.unfollowChef);
+
+/**
+ * PUT /api/users/favorites/:id
+ * Toggle favorite status of a recipe
+ */
+router.put("/favorites/:id", protect, userController.toggleFavorite);
+
 // ============================================
 // ADMIN ROUTES (Admin authentication required)
 // ============================================

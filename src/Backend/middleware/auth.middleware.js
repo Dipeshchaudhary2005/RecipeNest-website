@@ -21,6 +21,19 @@ const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Handle development admin-id bypass
+    if (decoded.id === "admin-id") {
+      req.user = {
+        _id: "admin-id",
+        name: "System Admin",
+        email: "admin",
+        role: "admin",
+        isActive: true
+      };
+      return next();
+    }
+
     const user = await User.findById(decoded.id).select("-password");
 
     if (!user) {

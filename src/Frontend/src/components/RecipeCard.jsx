@@ -1,4 +1,5 @@
-import { getImageUrl } from "../utils";
+import { getImageUrl, recipeAPI, userAPI } from "../services/api";
+import { useState } from "react";
 
 const getInitials = (chef) => {
   const name = typeof chef === "string" ? chef : chef?.name || "Chef";
@@ -145,7 +146,36 @@ const cardStyles = `
   }
 `;
 
-export default function RecipeCard({ recipe, onClick, variant = "grid" }) {
+export default function RecipeCard({ recipe, onClick, user, setUser, setPage, variant = "grid" }) {
+  const [loading, setLoading] = useState({ follow: false, favorite: false });
+
+  const isFavorited = user?.favorites?.includes(recipe._id);
+  const isFollowing = user?.following?.includes(recipe.chef?._id || recipe.chef);
+
+  const handleFavorite = async (e) => {
+    e.stopPropagation();
+    if (!user) { setPage && setPage("login"); return; }
+    if (loading.favorite) return;
+    setLoading(prev => ({ ...prev, favorite: true }));
+    try {
+      const res = await recipeAPI.toggleFavorite(recipe._id);
+      if (res.data.success) setUser(res.data.data.user);
+    } catch (err) { console.error(err); }
+    finally { setLoading(prev => ({ ...prev, favorite: false })); }
+  };
+
+  const handleFollow = async (e) => {
+    e.stopPropagation();
+    if (!user) { setPage && setPage("login"); return; }
+    if (loading.follow) return;
+    setLoading(prev => ({ ...prev, follow: true }));
+    try {
+      const chefId = recipe.chef?._id || recipe.chef;
+      const res = isFollowing ? await userAPI.unfollowChef(chefId) : await userAPI.followChef(chefId);
+      if (res.data.success) setUser(res.data.data.user);
+    } catch (err) { console.error(err); }
+    finally { setLoading(prev => ({ ...prev, follow: false })); }
+  };
   if (variant === "feed") {
     return (
       <div className="feed-post card-hover">
@@ -211,6 +241,16 @@ export default function RecipeCard({ recipe, onClick, variant = "grid" }) {
             <span className="badge" style={{ background: "rgba(255,255,255,0.9)", color: "var(--navy)", backdropFilter: "blur(4px)", border: "none" }}>{recipe.difficulty}</span>
             <span className="badge" style={{ background: "rgba(255,49,49,0.9)", color: "#fff", backdropFilter: "blur(4px)", border: "none" }}>{recipe.tag || "New"}</span>
           </div>
+          <button 
+            onClick={handleFavorite}
+            style={{
+              position: "absolute", top: "16px", right: "16px", width: "40px", height: "40px", borderRadius: "12px",
+              background: "rgba(255,255,255,0.9)", border: "none", fontSize: "18px", display: "flex", alignItems: "center",
+              justifyContent: "center", cursor: "pointer", transition: "var(--transition)", boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+            }}
+          >
+            {isFavorited ? "❤️" : "🤍"}
+          </button>
         </div>
 
         <div className="feed-post-actions" style={{ padding: "16px 20px" }}>
@@ -242,6 +282,18 @@ export default function RecipeCard({ recipe, onClick, variant = "grid" }) {
             alt={recipe.title}
             onError={(e) => { e.currentTarget.src = "https://via.placeholder.com/600x420?text=No+Image"; }}
           />
+          <button 
+            onClick={handleFavorite}
+            style={{
+              position: "absolute", top: "12px", right: "12px", width: "32px", height: "32px", borderRadius: "10px",
+              background: "rgba(255,255,255,0.92)", border: "none", fontSize: "16px", display: "flex", alignItems: "center",
+              justifyContent: "center", cursor: "pointer", transition: "all 0.3s ease", zIndex: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"}
+            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+          >
+            {isFavorited ? "❤️" : "🤍"}
+          </button>
           <span className="rn-diff-badge">{recipe.difficulty}</span>
           <span className="rn-tag-badge" style={{ background: recipe.tagColor || "var(--primary)" }}>{recipe.tag}</span>
         </div>
@@ -256,7 +308,17 @@ export default function RecipeCard({ recipe, onClick, variant = "grid" }) {
           <div className="rn-chef-row">
             <div className="rn-chef-info">
               <div className="rn-chef-avatar">{getInitials(recipe.chef?.name || recipe.chef || "Chef")}</div>
-              <span className="rn-chef-name">{recipe.chef?.name || recipe.chef || "Chef"}</span>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span className="rn-chef-name">{recipe.chef?.name || recipe.chef || "Chef"}</span>
+                {user && recipe.chef && user._id !== (recipe.chef._id || recipe.chef) && (
+                  <button 
+                    onClick={handleFollow}
+                    style={{ background: "none", border: "none", color: "var(--primary)", fontSize: "11px", fontWeight: "700", cursor: "pointer", padding: "0", textAlign: "left" }}
+                  >
+                    {isFollowing ? "Following" : "Follow"}
+                  </button>
+                )}
+              </div>
             </div>
             <span className="rn-view-link">View Recipe →</span>
           </div>

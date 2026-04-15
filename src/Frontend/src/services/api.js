@@ -3,6 +3,12 @@ import axios from "axios";
 const API_BASE_URL = "http://localhost:8080/api";
 export const BASE_URL = "http://localhost:8080";
 
+export const getImageUrl = (path) => {
+  if (!path) return "https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80"; // Default recipe image
+  if (path.startsWith("http")) return path;
+  return `${BASE_URL}${path}`;
+};
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -52,6 +58,7 @@ export const recipeAPI = {
   },
   delete: (id) => api.delete(`/recipes/${id}`),
   getMyRecipes: (params) => api.get("/recipes/my-recipes", { params }),
+  toggleFavorite: (id) => api.put(`/users/favorites/${id}`),
 };
 
 export const userAPI = {
@@ -62,6 +69,8 @@ export const userAPI = {
       "Content-Type": "multipart/form-data",
     },
   }),
+  followChef: (id) => api.put(`/users/follow/${id}`),
+  unfollowChef: (id) => api.put(`/users/unfollow/${id}`),
 };
 
 export const adminAPI = {
