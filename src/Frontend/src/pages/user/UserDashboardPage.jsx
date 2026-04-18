@@ -8,6 +8,7 @@ import { getImageUrl } from "../../utils";
 const NAV = [
   { icon: "🏠", label: "Feed", id: "feed" },
   { icon: "❤️", label: "Favorites", id: "favorites" },
+  { icon: "👥", label: "Following", id: "following" },
   { icon: "👤", label: "Profile", id: "profile" },
 ];
 
@@ -45,7 +46,7 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
   };
 
   const filteredRecipes = activeNav === "favorites"
-    ? recipes.filter(r => user?.favorites?.includes(r._id))
+    ? recipes.filter(r => user?.favorites?.some(fav => (fav._id || fav) === r._id))
     : activeCategory === "All"
       ? recipes
       : recipes.filter(r => r.tag === activeCategory || r.cuisine === activeCategory);
@@ -130,7 +131,7 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   const chefId = featuredRecipe.chef._id || featuredRecipe.chef;
-                                  const isFollowing = user.following?.includes(chefId);
+                                  const isFollowing = user.following?.some(f => (f._id || f) === chefId);
                                   try {
                                     const res = isFollowing ? await userAPI.unfollowChef(chefId) : await userAPI.followChef(chefId);
                                     if (res.data.success) setUser(res.data.data.user);
@@ -141,7 +142,7 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
                                   fontSize: "12px", fontWeight: "800", cursor: "pointer", padding: "0" 
                                 }}
                               >
-                                • {user.following?.includes(featuredRecipe.chef._id || featuredRecipe.chef) ? "Following" : "Follow"}
+                                • {user.following?.some(f => (f._id || f) === (featuredRecipe.chef._id || featuredRecipe.chef)) ? "Following" : "Follow"}
                               </button>
                             )}
                           </div>
@@ -220,6 +221,155 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
     </div>
   );
 
+  const renderFavorites = () => (
+    <div className="scroll-container">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "24px" }}>
+        {user.favorites && user.favorites.length > 0 ? (
+          user.favorites.map(recipe => (
+            <div key={recipe._id} style={{ 
+              background: "var(--white)", 
+              borderRadius: "24px", 
+              border: "1px solid var(--border-light)",
+              overflow: "hidden",
+              boxShadow: "var(--shadow-sm)",
+              display: "flex",
+              flexDirection: "column"
+            }}>
+              <div style={{ height: "180px", position: "relative" }}>
+                <img 
+                  src={getImageUrl(recipe.image)} 
+                  alt={recipe.title} 
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                />
+                <div style={{ position: "absolute", top: "12px", right: "12px" }}>
+                  <span className="badge" style={{ background: "rgba(255,255,255,0.9)", color: "var(--navy)", border: "none" }}>{recipe.difficulty}</span>
+                </div>
+              </div>
+              <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
+                <h4 style={{ fontSize: "18px", fontWeight: "800", color: "var(--navy)", marginBottom: "8px", fontFamily: "'Playfair Display', serif" }}>{recipe.title}</h4>
+                <div style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>⏱ {recipe.time || "20m"}</span>
+                  <span>•</span>
+                  <span>Chef {recipe.chef?.name || "Expert"}</span>
+                </div>
+                
+                <div style={{ marginTop: "auto", display: "flex", gap: "10px" }}>
+                  <button 
+                    className="btn-primary" 
+                    style={{ flex: 1, padding: "10px", fontSize: "12px", borderRadius: "10px" }}
+                    onClick={() => {
+                      setSelectedRecipe(recipe);
+                      setPage("recipe-detail");
+                    }}
+                  >
+                    View
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const res = await recipeAPI.toggleFavorite(recipe._id);
+                        if (res.data.success) setUser(res.data.data.user);
+                      } catch (err) { console.error(err); }
+                    }}
+                    style={{ 
+                      padding: "10px", 
+                      borderRadius: "10px", 
+                      border: "1px solid #ef4444", 
+                      background: "rgba(239, 68, 68, 0.05)", 
+                      color: "#ef4444",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)" }}>
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>❤️</div>
+            <h3 style={{ fontSize: "20px", fontWeight: "700" }}>Your favorite list is empty</h3>
+            <p style={{ color: "var(--text-muted)", marginTop: "8px" }}>Save recipes you love to see them here later!</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderFollowing = () => (
+    <div className="scroll-container">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px" }}>
+        {user.following && user.following.length > 0 ? (
+          user.following.map(chef => (
+            <div key={chef._id} style={{ 
+              background: "var(--white)", 
+              padding: "24px", 
+              borderRadius: "24px", 
+              border: "1px solid var(--border-light)",
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+              boxShadow: "var(--shadow-sm)"
+            }}>
+              <div style={{ 
+                width: "64px", 
+                height: "64px", 
+                borderRadius: "20px", 
+                background: "var(--primary)", 
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontSize: "24px",
+                fontWeight: "700"
+              }}>
+                {chef.avatar ? (
+                  <img src={getImageUrl(chef.avatar)} alt={chef.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  chef.name?.[0].toUpperCase()
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: "700", color: "var(--navy)", fontSize: "16px" }}>{chef.name}</div>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>{chef.role === 'chef' ? 'Professional Chef' : 'Community Expert'}</div>
+                <button 
+                  onClick={async () => {
+                    try {
+                      const res = await userAPI.unfollowChef(chef._id);
+                      if (res.data.success) setUser(res.data.data.user);
+                    } catch (err) { console.error(err); }
+                  }}
+                  style={{ 
+                    background: "rgba(239, 68, 68, 0.1)", 
+                    color: "#ef4444", 
+                    border: "none", 
+                    padding: "6px 12px", 
+                    borderRadius: "8px", 
+                    fontSize: "12px", 
+                    fontWeight: "700",
+                    cursor: "pointer"
+                  }}
+                >
+                  Unfollow
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)" }}>
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>👥</div>
+            <h3 style={{ fontSize: "20px", fontWeight: "700" }}>You're not following anyone yet</h3>
+            <p style={{ color: "var(--text-muted)", marginTop: "8px" }}>Explore the feed to find chefs and follow them to see them here!</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="sidebar-layout">
       {/* SIDEBAR */}
@@ -270,10 +420,10 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
         <div className="page-header" style={{ marginBottom: "32px" }}>
           <div>
             <h1 className="page-title">
-              {activeNav === "feed" ? "Recipe Feed" : activeNav === "favorites" ? "Saved Recipes" : "My Profile"}
+              {activeNav === "feed" ? "Recipe Feed" : activeNav === "favorites" ? "Saved Recipes" : activeNav === "following" ? "Following" : "My Profile"}
             </h1>
             <p className="page-sub">
-              {activeNav === "feed" ? "Trending recipes from the community" : activeNav === "favorites" ? "Recipes you've favorited for later" : "Manage your personal information"}
+              {activeNav === "feed" ? "Trending recipes from the community" : activeNav === "favorites" ? "Recipes you've favorited for later" : activeNav === "following" ? "Chefs you're currently following" : "Manage your personal information"}
             </p>
           </div>
         </div>
@@ -296,7 +446,9 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
             {error}
           </div>
         ) : (
-          (activeNav === "feed" || activeNav === "favorites") ? renderFeed() : (
+          activeNav === "feed" ? renderFeed() : 
+          activeNav === "favorites" ? renderFavorites() : 
+          activeNav === "following" ? renderFollowing() : (
             <div style={{ textAlign: "center", padding: "100px 0" }}>
               <div style={{ width: "120px", height: "120px", borderRadius: "40px", background: "var(--primary)", color: "white", fontSize: "40px", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.1)" }}>
                 {user?.avatar ? <img src={getImageUrl(user.avatar)} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : user?.name?.[0].toUpperCase()}

@@ -2,6 +2,7 @@ const User = require("../models/user.models");
 const jwt = require("jsonwebtoken");
 const { deleteOldFile, getFileUrl } = require("../config/multer.config");
 const { JWT_SECRET, JWT_EXPIRES_IN } = require("../config/config");
+const emailService = require("./email.service");
 
 const generateToken = (payload) => jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
@@ -95,7 +96,11 @@ const loginUser = async (email, password) => {
 
 const getUserProfile = async (userId) => {
   try {
-    const user = await User.findById(userId).select("-password");
+    const user = await User.findById(userId)
+      .select("-password")
+      .populate("following", "name avatar email role")
+      .populate("favorites", "title image chef difficulty time");
+    
     if (!user) {
       const error = new Error("User not found");
       error.statusCode = 404;
@@ -181,6 +186,13 @@ const sendPasswordResetCode = async (email) => {
     user.passwordResetCode = code;
     user.passwordResetExpires = new Date(Date.now() + 1000 * 60 * 15);
     await user.save({ validateBeforeSave: false });
+
+    // Actually send the email
+    await emailService.sendResetPasswordEmail(user.email, code).catch(err => {
+      console.error("Non-blocking email error:", err.message);
+      // We don't throw here to avoid failing the API request if the code is saved
+      // But in a production app, you might want to handle this differently
+    });
 
     return {
       success: true,
@@ -421,7 +433,10 @@ const followChef = async (userId, chefId) => {
       userId,
       { $addToSet: { following: chefId } },
       { new: true }
-    ).select("-password");
+    )
+      .select("-password")
+      .populate("following", "name avatar email role")
+      .populate("favorites", "title image chef difficulty time");
 
     return { success: true, message: "Chef followed successfully", data: { user } };
   } catch (error) {
@@ -441,7 +456,10 @@ const unfollowChef = async (userId, chefId) => {
       userId,
       { $pull: { following: chefId } },
       { new: true }
-    ).select("-password");
+    )
+      .select("-password")
+      .populate("following", "name avatar email role")
+      .populate("favorites", "title image chef difficulty time");
 
     return { success: true, message: "Chef unfollowed successfully", data: { user } };
   } catch (error) {
@@ -473,7 +491,10 @@ const toggleFavoriteRecipe = async (userId, recipeId) => {
       userId,
       update,
       { new: true }
-    ).select("-password");
+    )
+      .select("-password")
+      .populate("following", "name avatar email role")
+      .populate("favorites", "title image chef difficulty time");
 
     return { 
       success: true, 

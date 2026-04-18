@@ -149,8 +149,8 @@ const cardStyles = `
 export default function RecipeCard({ recipe, onClick, user, setUser, setPage, variant = "grid" }) {
   const [loading, setLoading] = useState({ follow: false, favorite: false });
 
-  const isFavorited = user?.favorites?.includes(recipe._id);
-  const isFollowing = user?.following?.includes(recipe.chef?._id || recipe.chef);
+  const isFavorited = user?.favorites?.some(f => (f._id || f) === recipe._id);
+  const isFollowing = user?.following?.some(f => (f._id || f) === (recipe.chef?._id || recipe.chef));
 
   const handleFavorite = async (e) => {
     e.stopPropagation();

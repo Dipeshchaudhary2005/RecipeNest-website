@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { authAPI } from "../../services/api";
 
 export default function ForgotPasswordPage({ setPage }) {
@@ -12,6 +12,25 @@ export default function ForgotPasswordPage({ setPage }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  // Auto-fill from sessionStorage (if landed here via direct link)
+  useEffect(() => {
+    const savedEmail = sessionStorage.getItem("reset_email");
+    const savedCode = sessionStorage.getItem("reset_code");
+
+    if (savedEmail) {
+      setEmail(savedEmail);
+      sessionStorage.removeItem("reset_email");
+    }
+
+    if (savedCode && savedCode.length === 6) {
+      const codeArray = savedCode.split("");
+      setOtp(codeArray);
+      setStep(2); // Jump to OTP step
+      sessionStorage.removeItem("reset_code");
+      setMessage("Reset code auto-filled from link.");
+    }
+  }, []);
 
   const handleOtpChange = (i, val) => {
     if (!/^\d?$/.test(val)) return;
@@ -103,11 +122,6 @@ export default function ForgotPasswordPage({ setPage }) {
     }
   };
 
-  const stepImages = [
-    "https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=700&h=1000&fit=crop",
-    "https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=700&h=1000&fit=crop",
-    "https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=700&h=1000&fit=crop",
-  ];
 
   return (
     <div className="auth-overlay">

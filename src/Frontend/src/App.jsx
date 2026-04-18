@@ -55,6 +55,26 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
+  // Handle URL query parameters for direct links (e.g. from reset email)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pageParam = params.get("page");
+    const emailParam = params.get("email");
+    const codeParam = params.get("code");
+
+    if (pageParam === "forgot-password") {
+      setPage("forgot-password");
+      // We could also pass email/code to the ForgotPasswordPage via a global state or prop
+      // but the immediate goal is to get the user to the right page.
+      // To make it even better, let's store them in session storage for the component to pick up
+      if (emailParam) sessionStorage.setItem("reset_email", emailParam);
+      if (codeParam) sessionStorage.setItem("reset_code", codeParam);
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const toggleTheme = () => setTheme(prev => prev === "light" ? "dark" : "light");
 
   // Custom navigation that tracks history
