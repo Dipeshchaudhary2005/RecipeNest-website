@@ -36,6 +36,7 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -83,6 +84,29 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
       console.error("Error fetching chef stats:", err);
       setMyStats(null);
     }
+  };
+
+  const handleDeleteRecipe = async (recipeId) => {
+    if (!window.confirm("Are you sure you want to delete this recipe?")) return;
+    try {
+      const res = await recipeAPI.delete(recipeId);
+      if (res.data.success) {
+        fetchMyRecipes();
+        fetchMyStats();
+      }
+    } catch (err) {
+      console.error("Error deleting recipe:", err);
+      alert("Failed to delete recipe.");
+    }
+  };
+
+  const handleEditRecipe = (recipe) => {
+    setEditingRecipe(recipe);
+    setIsModalOpen(true);
+  };
+
+  const handleViewStats = (recipe) => {
+    alert(`Stats for ${recipe.title}:\nLikes: ${recipe.likes || 0}\nSaves: ${recipe.saves || 0}\nReviews: ${recipe.reviews || 0}\nRating: ${recipe.rating || 0}`);
   };
 
   const fetchFeed = async () => {
@@ -437,9 +461,9 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
                     </div>
                     <div style={{ display: "flex", gap: "8px", padding: "0 20px 20px" }}>
                       {[
-                        { icon: "✏️", label: "Edit" },
-                        { icon: "📊", label: "Stats" },
-                        { icon: "🗑️", label: "Delete" }
+                        { icon: "✏️", label: "Edit", onClick: () => handleEditRecipe(recipe) },
+                        { icon: "📊", label: "Stats", onClick: () => handleViewStats(recipe) },
+                        { icon: "🗑️", label: "Delete", onClick: () => handleDeleteRecipe(recipe._id) }
                       ].map(action => (
                         <button 
                           key={action.label}
@@ -450,9 +474,13 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
                             padding: "8px", 
                             borderRadius: "8px", 
                             fontSize: "14px",
+                            cursor: "pointer",
                             transition: "var(--transition)"
                           }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            action.onClick();
+                          }}
                         >
                           {action.icon}
                         </button>
@@ -683,8 +711,15 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
 
         <CreateRecipeModal 
           isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
-          onRefresh={fetchMyRecipes} 
+          editRecipe={editingRecipe}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingRecipe(null);
+          }} 
+          onRefresh={() => {
+            fetchMyRecipes();
+            fetchMyStats();
+          }} 
         />
         
         <SettingsModal 

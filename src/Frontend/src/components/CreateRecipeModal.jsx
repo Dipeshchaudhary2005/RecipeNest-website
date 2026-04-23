@@ -1,24 +1,26 @@
 import { useState } from "react";
 import { recipeAPI } from "../services/api";
 
-export default function CreateRecipeModal({ isOpen, onClose, onRefresh }) {
+export default function CreateRecipeModal({ isOpen, onClose, onRefresh, editRecipe = null }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    prepTime: "",
-    cookTime: "",
-    servings: 1,
-    difficulty: "Easy",
-    cuisine: "",
-    tag: "",
-    tip: "",
+    title: editRecipe?.title || "",
+    description: editRecipe?.description || "",
+    prepTime: editRecipe?.prepTime || "",
+    cookTime: editRecipe?.cookTime || "",
+    servings: editRecipe?.servings || 1,
+    difficulty: editRecipe?.difficulty || "Easy",
+    cuisine: editRecipe?.cuisine || "",
+    tag: editRecipe?.tag || "",
+    tip: editRecipe?.tip || "",
   });
-  const [ingredients, setIngredients] = useState([{ name: "", note: "" }]);
-  const [steps, setSteps] = useState([{ title: "", body: "", order: 1, hasImage: false, image: null, preview: null }]);
+  
+  const [ingredients, setIngredients] = useState(editRecipe?.ingredients?.length > 0 ? editRecipe.ingredients : [{ name: "", note: "" }]);
+  const [steps, setSteps] = useState(editRecipe?.steps?.length > 0 ? editRecipe.steps.map(s => ({ ...s, preview: s.image ? s.image : null })) : [{ title: "", body: "", order: 1, hasImage: false, image: null, preview: null }]);
   const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [imagePreview, setImagePreview] = useState(editRecipe?.image || null);
 
   if (!isOpen) return null;
 
@@ -109,9 +111,16 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh }) {
       });
       
       // Default status to Pending Review for admin approval
-      data.append("status", "Pending Review");
+      if (!editRecipe) {
+        data.append("status", "Pending Review");
+      } else {
+        data.append("status", editRecipe.status); // Keep current status
+      }
 
-      const response = await recipeAPI.create(data);
+      const response = editRecipe 
+        ? await recipeAPI.update(editRecipe._id, data)
+        : await recipeAPI.create(data);
+        
       if (response.data.success) {
         const createdRecipe = response.data.data;
 
@@ -172,8 +181,8 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh }) {
           zIndex: 10
         }}>
           <div>
-            <h2 style={{ fontSize: "24px", fontWeight: "800", color: "var(--navy)" }}>Create New Recipe</h2>
-            <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>Share your culinary masterpiece with the world.</p>
+            <h2 style={{ fontSize: "24px", fontWeight: "800", color: "var(--navy)" }}>{editRecipe ? "Edit Recipe" : "Create New Recipe"}</h2>
+            <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>{editRecipe ? "Update your culinary masterpiece." : "Share your culinary masterpiece with the world."}</p>
           </div>
           <button 
             onClick={onClose}
@@ -370,7 +379,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh }) {
           <div style={{ display: "flex", gap: "16px", justifyContent: "flex-end", padding: "16px 0" }}>
             <button type="button" onClick={onClose} className="btn-secondary" style={{ padding: "12px 32px" }}>Cancel</button>
             <button type="submit" className="btn-primary" disabled={loading} style={{ padding: "12px 48px", minWidth: "160px" }}>
-              {loading ? "Publishing..." : "Create Recipe"}
+              {loading ? (editRecipe ? "Updating..." : "Publishing...") : (editRecipe ? "Save Changes" : "Create Recipe")}
             </button>
           </div>
         </form>

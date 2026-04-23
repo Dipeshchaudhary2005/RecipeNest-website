@@ -765,7 +765,9 @@ function AdminRecipes({ filterOverride, clearFilterOverride }) {
 
   const filteredRecipes = filterStatus === "all" 
     ? recipes 
-    : recipes.filter(r => r.status === filterStatus);
+    : filterStatus === "Rejected"
+      ? recipes.filter(r => r.status === "Rejected" || r.status === "Cancelled")
+      : recipes.filter(r => r.status === filterStatus);
 
   return (
     <div>
@@ -819,6 +821,21 @@ function AdminRecipes({ filterOverride, clearFilterOverride }) {
           }}
         >
           Live ({recipes.filter(r => r.status === "Live").length})
+        </button>
+        <button 
+          onClick={() => setFilterStatus("Rejected")}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "8px",
+            border: filterStatus === "Rejected" ? "2px solid var(--primary)" : "1px solid var(--border-light)",
+            background: filterStatus === "Rejected" ? "rgba(255,49,49,0.1)" : "var(--white)",
+            color: filterStatus === "Rejected" ? "var(--primary)" : "var(--text-main)",
+            fontWeight: "700",
+            fontSize: "13px",
+            cursor: "pointer"
+          }}
+        >
+          Rejected ({recipes.filter(r => r.status === "Rejected" || r.status === "Cancelled").length})
         </button>
       </div>
 
