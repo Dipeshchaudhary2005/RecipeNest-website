@@ -155,6 +155,46 @@ const RecipeSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // Reviews (ratings + comments)
+    reviewList: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        name: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        avatar: {
+          type: String,
+          default: null,
+        },
+        rating: {
+          type: Number,
+          min: 1,
+          max: 5,
+          required: true,
+        },
+        comment: {
+          type: String,
+          trim: true,
+          maxlength: 2000,
+          default: "",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        updatedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
     // Ingredients
     ingredients: [IngredientSchema],
 

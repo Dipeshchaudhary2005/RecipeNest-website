@@ -40,7 +40,7 @@ const validateLogin = (data) => {
 
 const validateUpdateProfile = (data) => {
   const errors = [];
-  const allowedFields = ["name", "phone", "address", "avatar"];
+  const allowedFields = ["name", "phone", "address", "avatar", "bio", "specialty"];
   
   const updateKeys = Object.keys(data);
   const invalidFields = updateKeys.filter(key => !allowedFields.includes(key));
@@ -337,6 +337,33 @@ const toggleFavorite = async (req, res) => {
   }
 };
 
+const getMyFollowers = async (req, res) => {
+  try {
+    const result = await userService.getFollowersForChef(req.user._id);
+    res.status(200).json({ success: true, data: result.data });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+const getMyNotifications = async (req, res) => {
+  try {
+    const result = await userService.getNotifications(req.user._id);
+    res.status(200).json({ success: true, data: result.data });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+const markNotificationsRead = async (req, res) => {
+  try {
+    const result = await userService.markNotificationsRead(req.user._id, req.body);
+    res.status(200).json({ success: true, data: result.data, message: "Notifications marked as read" });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -356,4 +383,7 @@ module.exports = {
   followChef,
   unfollowChef,
   toggleFavorite,
+  getMyFollowers,
+  getMyNotifications,
+  markNotificationsRead,
 };

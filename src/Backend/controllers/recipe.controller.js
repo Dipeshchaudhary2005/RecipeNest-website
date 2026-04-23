@@ -240,7 +240,7 @@ const updateRecipe = async (req, res) => {
       });
     }
 
-    const recipe = await recipeService.updateRecipe(req.params.id, rawData, req.files, req.user._id);
+    const recipe = await recipeService.updateRecipe(req.params.id, rawData, req.files, req.user);
     if (!recipe) {
       return res.status(404).json({
         success: false,
@@ -358,6 +358,83 @@ const getMyRecipes = async (req, res) => {
   }
 };
 
+/**
+ * Get creation stats for the logged-in chef
+ * GET /api/recipes/my-stats
+ */
+const getMyStats = async (req, res) => {
+  try {
+    const stats = await recipeService.getChefStats(req.user._id);
+    res.status(200).json({
+      success: true,
+      data: stats,
+      message: "Chef stats retrieved successfully",
+    });
+  } catch (error) {
+    console.error("Get my stats error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve chef stats",
+      error: NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+/**
+ * Add or update a review for a recipe
+ * POST /api/recipes/:id/reviews
+ */
+const addOrUpdateReview = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    const updated = await recipeService.addOrUpdateReview({
+      recipeId: req.params.id,
+      user: req.user,
+      rating,
+      comment,
+    });
+    res.status(200).json({
+      success: true,
+      data: updated,
+      message: "Review saved successfully",
+    });
+  } catch (error) {
+    console.error("Add/update review error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to save review",
+      error: NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+/**
+ * Get reviews for a recipe
+ * GET /api/recipes/:id/reviews
+ */
+const getRecipeReviews = async (req, res) => {
+  try {
+    const reviews = await recipeService.getRecipeReviews(req.params.id);
+    res.status(200).json({
+      success: true,
+      data: reviews,
+      message: "Reviews retrieved successfully",
+    });
+  } catch (error) {
+    console.error("Get reviews error:", error);
+    const msg = error?.message || "Failed to retrieve reviews";
+    const status =
+      msg.toLowerCase().includes("invalid recipe id") ? 400 :
+      msg.toLowerCase().includes("recipe not found") ? 404 :
+      500;
+    res.status(status).json({
+      success: false,
+      message: msg,
+      error: NODE_ENV === "development" ? msg : undefined,
+    });
+  }
+};
+
 module.exports = {
   getAllRecipes,
   getRecipeById,
@@ -367,4 +444,7 @@ module.exports = {
   getRecipesByChef,
   searchRecipes,
   getMyRecipes,
+  getMyStats,
+  addOrUpdateReview,
+  getRecipeReviews,
 };

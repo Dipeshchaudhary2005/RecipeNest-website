@@ -236,6 +236,10 @@ export default function RecipeCard({ recipe, onClick, user, setUser, setPage, va
             }}
             onMouseEnter={e => e.currentTarget.style.transform = "scale(1.02)"}
             onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = getImageUrl(null);
+            }}
           />
           <div style={{ position: "absolute", bottom: "16px", left: "16px", display: "flex", gap: "8px" }}>
             <span className="badge" style={{ background: "rgba(255,255,255,0.9)", color: "var(--navy)", backdropFilter: "blur(4px)", border: "none" }}>{recipe.difficulty}</span>

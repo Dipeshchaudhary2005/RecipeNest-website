@@ -1,4 +1,30 @@
+import { useEffect, useState } from "react";
+
 export default function Navbar({ setPage, user, onLogout, onBack, showBack, search, setSearch, theme, toggleTheme }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth > 768) setMobileOpen(false);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const navigate = (next) => {
+    setMobileOpen(false);
+    setPage(next);
+  };
+
+  const scrollToIdOnHome = (id) => {
+    setMobileOpen(false);
+    setPage("home");
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
   return (
     <nav className="top-nav" style={{ 
       background: "var(--white)", 
@@ -15,7 +41,7 @@ export default function Navbar({ setPage, user, onLogout, onBack, showBack, sear
       transition: "var(--transition)"
     }}>
       {/* Left: Logo & Back */}
-      <div style={{ display: "flex", alignItems: "center", gap: "24px", minWidth: "150px" }}>
+      <div className="top-nav-left" style={{ display: "flex", alignItems: "center", gap: "24px", minWidth: "150px" }}>
         {showBack && (
           <button 
             className="btn-back" 
@@ -32,7 +58,7 @@ export default function Navbar({ setPage, user, onLogout, onBack, showBack, sear
         )}
         <button 
           className="top-nav-logo" 
-          onClick={() => setPage("home")}
+          onClick={() => navigate("home")}
           style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: "10px", color: "var(--navy)", fontSize: "22px", fontWeight: "800", fontFamily: "'Playfair Display', serif" }}
         >
           <div style={{ width: "32px", height: "32px", background: "var(--primary)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "16px", fontWeight: "900" }}>R</div>
@@ -41,7 +67,7 @@ export default function Navbar({ setPage, user, onLogout, onBack, showBack, sear
       </div>
 
       {/* Center Group: Links & Search */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "40px" }}>
+      <div className="top-nav-center" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "40px" }}>
         <div className="top-nav-links" style={{ display: "flex", gap: "28px" }}>
           {[
             { label: "Explore Recipes", page: "explore-recipes" },
@@ -54,14 +80,9 @@ export default function Navbar({ setPage, user, onLogout, onBack, showBack, sear
               className="top-nav-link" 
               onClick={() => {
                 if (link.page) {
-                  setPage(link.page);
+                  navigate(link.page);
                 } else if (link.id) {
-                  setPage("home");
-                  // Wait for home page to render then scroll
-                  setTimeout(() => {
-                    const el = document.getElementById(link.id);
-                    if (el) el.scrollIntoView({ behavior: "smooth" });
-                  }, 100);
+                  scrollToIdOnHome(link.id);
                 }
               }} 
               style={{ 
@@ -128,7 +149,7 @@ export default function Navbar({ setPage, user, onLogout, onBack, showBack, sear
       </div>
 
       {/* Right: Actions */}
-      <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: "150px", justifyContent: "flex-end" }}>
+      <div className="top-nav-right" style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: "150px", justifyContent: "flex-end" }}>
         {/* Theme Toggle */}
         <button 
           onClick={toggleTheme}
@@ -155,13 +176,13 @@ export default function Navbar({ setPage, user, onLogout, onBack, showBack, sear
         {user ? (
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <button 
-              onClick={() => setPage(`${user.role}-dashboard`)}
+              onClick={() => navigate(`${user.role}-dashboard`)}
               style={{ fontSize: "14px", fontWeight: "700", color: "var(--primary)", background: "none", border: "none" }}
             >
               {`${user.role?.charAt(0).toUpperCase() + user.role?.slice(1) || "User"} Dashboard`}
             </button>
             <button 
-              onClick={onLogout}
+              onClick={() => { setMobileOpen(false); onLogout(); }}
               style={{ 
                 background: "var(--bg)", 
                 border: "1px solid var(--border-light)",
@@ -182,11 +203,100 @@ export default function Navbar({ setPage, user, onLogout, onBack, showBack, sear
           <button 
             className="btn-primary" 
             style={{ padding: "10px 24px", fontSize: "14px" }} 
-            onClick={() => setPage("signup")}
+            onClick={() => navigate("signup")}
           >
             Sign Up
           </button>
         )}
+      </div>
+
+      {/* Mobile hamburger */}
+      <button
+        className="top-nav-burger"
+        type="button"
+        onClick={() => setMobileOpen((v) => !v)}
+        aria-label="Toggle menu"
+        aria-expanded={mobileOpen ? "true" : "false"}
+        style={{
+          display: "none",
+          width: "42px",
+          height: "42px",
+          borderRadius: "12px",
+          border: "1px solid var(--border-light)",
+          background: "var(--bg)",
+          color: "var(--text-main)",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "20px",
+        }}
+      >
+        <i className={mobileOpen ? "ri-close-line" : "ri-menu-line"}></i>
+      </button>
+
+      {/* Mobile panel */}
+      <div
+        className={`top-nav-mobile ${mobileOpen ? "open" : ""}`}
+        role="dialog"
+        aria-label="Mobile menu"
+      >
+        <div className="top-nav-mobile-inner">
+          <div className="top-nav-mobile-section">
+            <div style={{ fontSize: "12px", fontWeight: "800", color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
+              Navigate
+            </div>
+            {[
+              { label: "Home", onClick: () => navigate("home") },
+              { label: "Explore Recipes", onClick: () => navigate("explore-recipes") },
+              { label: "About", onClick: () => scrollToIdOnHome("about-section") },
+              { label: "Community", onClick: () => scrollToIdOnHome("community-stats") },
+              { label: "Contact", onClick: () => scrollToIdOnHome("footer-contact") },
+            ].map((item) => (
+              <button key={item.label} className="top-nav-mobile-link" onClick={item.onClick}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="top-nav-mobile-section">
+            <div style={{ fontSize: "12px", fontWeight: "800", color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
+              Search
+            </div>
+            <div className="top-nav-mobile-search">
+              <input
+                type="text"
+                placeholder="Search recipes..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage("home");
+                }}
+              />
+              <button className="btn-primary" onClick={() => setMobileOpen(false)} style={{ padding: "10px 14px", borderRadius: "12px" }}>
+                <i className="ri-search-line"></i>
+              </button>
+            </div>
+          </div>
+
+          <div className="top-nav-mobile-section">
+            <div style={{ fontSize: "12px", fontWeight: "800", color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
+              Account
+            </div>
+            {user ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <button className="top-nav-mobile-link strong" onClick={() => navigate(`${user.role}-dashboard`)}>
+                  Open Dashboard
+                </button>
+                <button className="top-nav-mobile-link danger" onClick={() => { setMobileOpen(false); onLogout(); }}>
+                  Log out
+                </button>
+              </div>
+            ) : (
+              <button className="btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => navigate("signup")}>
+                Sign Up
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </nav>
   );

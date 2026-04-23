@@ -24,7 +24,7 @@ export default function HomePage({ setPage, setSelectedRecipe, search, setSearch
       const response = await recipeAPI.getAll({ limit: 6 });
       if (response.data.success) {
         const data = response.data.data;
-        setRecipes(data.recipes || []);
+        setRecipes(Array.isArray(data) ? data : data.recipes || []);
       }
     } catch (err) {
       console.error("Error fetching recipes:", err);

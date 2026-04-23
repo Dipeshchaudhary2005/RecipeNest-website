@@ -22,12 +22,22 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
   const [error, setError] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (activeNav === "feed") {
       fetchFeed();
     }
   }, [activeNav]);
+
+  useEffect(() => {
+    // Check if profile is incomplete (missing essential info)
+    const isProfileIncomplete = !user?.phone || !user?.address;
+    if (isProfileIncomplete && localStorage.getItem("justLoggedIn") === "true") {
+      setIsProfileOpen(true);
+      localStorage.removeItem("justLoggedIn");
+    }
+  }, [user]);
 
   const fetchFeed = async () => {
     try {
@@ -45,11 +55,12 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
     }
   };
 
-  const filteredRecipes = activeNav === "favorites"
-    ? recipes.filter(r => user?.favorites?.some(fav => (fav._id || fav) === r._id))
-    : activeCategory === "All"
-      ? recipes
-      : recipes.filter(r => r.tag === activeCategory || r.cuisine === activeCategory);
+  const filteredRecipes = recipes.filter(r => {
+    const matchesCategory = activeCategory === "All" || r.tag === activeCategory || r.cuisine === activeCategory;
+    const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          r.chef?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   const featuredRecipe = filteredRecipes[0];
   const trendingRecipes = filteredRecipes.slice(1);
@@ -75,6 +86,29 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
             {cat}
           </button>
         ))}
+      </div>
+
+      <div style={{ position: "relative", marginBottom: "32px", width: "100%", maxWidth: "500px" }}>
+        <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "16px", color: "var(--text-muted)" }}>🔍</span>
+        <input 
+          type="text" 
+          placeholder="Search recipes, chefs, or ingredients..." 
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ 
+            width: "100%", 
+            padding: "14px 16px 14px 48px", 
+            borderRadius: "18px", 
+            border: "1px solid var(--border-light)", 
+            background: "var(--white)", 
+            outline: "none",
+            fontSize: "14px",
+            boxShadow: "var(--shadow-sm)",
+            transition: "all 0.3s ease"
+          }}
+          onFocus={(e) => e.target.style.borderColor = "var(--primary)"}
+          onBlur={(e) => e.target.style.borderColor = "var(--border-light)"}
+        />
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
@@ -449,31 +483,53 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
           activeNav === "feed" ? renderFeed() : 
           activeNav === "favorites" ? renderFavorites() : 
           activeNav === "following" ? renderFollowing() : (
-            <div style={{ textAlign: "center", padding: "100px 0" }}>
-              <div style={{ width: "120px", height: "120px", borderRadius: "40px", background: "var(--primary)", color: "white", fontSize: "40px", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.1)" }}>
-                {user?.avatar ? <img src={getImageUrl(user.avatar)} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : user?.name?.[0].toUpperCase()}
+            <div style={{ textAlign: "center", padding: "60px 0" }}>
+              <div style={{ position: "relative", width: "120px", height: "120px", margin: "0 auto 24px" }}>
+                <div style={{ width: "120px", height: "120px", borderRadius: "40px", background: "var(--primary)", color: "white", fontSize: "40px", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.1)", border: "4px solid var(--white)" }}>
+                  {user?.avatar ? <img src={getImageUrl(user.avatar)} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : user?.name?.[0].toUpperCase()}
+                </div>
+                <button 
+                  onClick={() => setIsProfileOpen(true)}
+                  style={{ position: "absolute", bottom: "0", right: "0", width: "36px", height: "36px", borderRadius: "12px", background: "var(--navy)", color: "white", border: "2px solid var(--white)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                >
+                  ✏️
+                </button>
               </div>
-              <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--navy)" }}>{user?.name}</h2>
-              <p style={{ color: "var(--text-muted)", marginBottom: "32px" }}>{user?.email}</p>
+
+              <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--navy)", marginBottom: "4px" }}>{user?.name}</h2>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "24px" }}>
+                 <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "700", background: "var(--bg)", padding: "4px 12px", borderRadius: "99px" }}>Home Cook</span>
+                 {user?.specialty && <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>• {user.specialty}</span>}
+              </div>
+
+              <p style={{ color: "var(--text-main)", fontSize: "15px", lineHeight: "1.7", maxWidth: "500px", margin: "0 auto 32px", fontStyle: user?.bio ? "normal" : "italic" }}>
+                {user?.bio || "No bio provided yet. Click edit to tell the community about your cooking style!"}
+              </p>
               
               <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "16px", maxWidth: "600px", margin: "0 auto" }}>
-                <div style={{ flex: 1, minWidth: "200px", padding: "20px", background: "var(--white)", borderRadius: "20px", border: "1px solid var(--border-light)" }}>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", marginBottom: "4px" }}>PHONE</div>
-                  <div style={{ fontWeight: "700" }}>{user?.phone || "Not provided"}</div>
+                <div style={{ flex: 1, minWidth: "200px", padding: "20px", background: "var(--white)", borderRadius: "20px", border: "1px solid var(--border-light)", textAlign: "left" }}>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700", marginBottom: "4px" }}>EMAIL</div>
+                  <div style={{ fontWeight: "700", color: "var(--navy)" }}>{user?.email}</div>
                 </div>
-                <div style={{ flex: 1, minWidth: "200px", padding: "20px", background: "var(--white)", borderRadius: "20px", border: "1px solid var(--border-light)" }}>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", marginBottom: "4px" }}>ADDRESS</div>
-                  <div style={{ fontWeight: "700" }}>{user?.address || "Not provided"}</div>
+                <div style={{ flex: 1, minWidth: "200px", padding: "20px", background: "var(--white)", borderRadius: "20px", border: "1px solid var(--border-light)", textAlign: "left" }}>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700", marginBottom: "4px" }}>PHONE</div>
+                  <div style={{ fontWeight: "700", color: "var(--navy)" }}>{user?.phone || "Not provided"}</div>
+                </div>
+                <div style={{ width: "100%", padding: "20px", background: "var(--white)", borderRadius: "20px", border: "1px solid var(--border-light)", textAlign: "left" }}>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700", marginBottom: "4px" }}>ADDRESS</div>
+                  <div style={{ fontWeight: "700", color: "var(--navy)" }}>{user?.address || "Not provided"}</div>
                 </div>
               </div>
 
-              <button 
-                className="btn-primary" 
-                style={{ marginTop: "40px", padding: "14px 40px" }}
-                onClick={() => setIsProfileOpen(true)}
-              >
-                Edit My Profile
-              </button>
+              <div style={{ marginTop: "40px", display: "flex", justifyContent: "center" }}>
+                <button 
+                  className="btn-primary" 
+                  style={{ padding: "14px 60px", borderRadius: "14px" }}
+                  onClick={() => setIsProfileOpen(true)}
+                >
+                  Edit Profile
+                </button>
+              </div>
             </div>
           )
         )}

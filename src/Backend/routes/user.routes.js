@@ -121,6 +121,24 @@ router.put("/unfollow/:id", protect, userController.unfollowChef);
  */
 router.put("/favorites/:id", protect, userController.toggleFavorite);
 
+/**
+ * GET /api/users/followers
+ * Get followers for the logged-in chef
+ */
+router.get("/followers", protect, userController.getMyFollowers);
+
+/**
+ * GET /api/users/notifications
+ * Get notifications for the logged-in user (chef/admin)
+ */
+router.get("/notifications", protect, userController.getMyNotifications);
+
+/**
+ * PATCH /api/users/notifications/read
+ * Mark notifications as read (all by default)
+ */
+router.patch("/notifications/read", protect, userController.markNotificationsRead);
+
 // ============================================
 // ADMIN ROUTES (Admin authentication required)
 // ============================================

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { getImageUrl, userAPI, recipeAPI } from "../services/api";
 
 const getInitials = (chef) => {
@@ -19,19 +19,60 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState({ follow: false, favorite: false });
+  const [liveRecipe, setLiveRecipe] = useState(recipe);
+  const [reviewsData, setReviewsData] = useState({ rating: 0, reviews: 0, reviewList: [] });
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   useEffect(() => {
-    if (user && recipe && recipe.chef) {
-      const chefId = typeof recipe.chef === "string" ? null : recipe.chef._id;
+    if (user && liveRecipe && liveRecipe.chef) {
+      const chefId = typeof liveRecipe.chef === "string" ? null : liveRecipe.chef._id;
       if (chefId) {
         setIsFollowing(user.following?.includes(chefId));
       }
-      setIsFavorited(user.favorites?.includes(recipe._id));
+      setIsFavorited(user.favorites?.includes(liveRecipe._id));
     }
-  }, [user, recipe]);
+  }, [user, liveRecipe]);
 
-  if (!recipe) return null;
-  const stepImages = recipe.stepImages || [];
+  useEffect(() => {
+    setLiveRecipe(recipe);
+  }, [recipe]);
+
+  useEffect(() => {
+    const id = recipe?._id;
+    if (!id) return;
+    (async () => {
+      try {
+        const [recipeRes, reviewsRes] = await Promise.all([
+          recipeAPI.getById(id),
+          recipeAPI.getReviews(id),
+        ]);
+        if (recipeRes.data?.success) setLiveRecipe(recipeRes.data.data);
+        if (reviewsRes.data?.success) setReviewsData(reviewsRes.data.data);
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, [recipe?._id]);
+
+  const myExistingReview = useMemo(() => {
+    const uid = user?._id;
+    if (!uid) return null;
+    return (reviewsData.reviewList || []).find((r) => (r.user?._id || r.user) === uid) || null;
+  }, [reviewsData.reviewList, user?._id]);
+
+  useEffect(() => {
+    if (myExistingReview) {
+      setReviewForm({
+        rating: myExistingReview.rating || 5,
+        comment: myExistingReview.comment || "",
+      });
+    }
+  }, [myExistingReview]);
+
+  if (!liveRecipe) return null;
+  const stepImages = liveRecipe.stepImages || [];
   let imgIdx = 0;
 
   const toggleIngredient = (idx) => {
@@ -57,7 +98,7 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
           {/* LEFT: Main Content */}
           <div>
             <h1 className="serif" style={{ fontSize: "48px", fontWeight: "900", lineHeight: "1.1", marginBottom: "24px", color: "var(--text-main)" }}>
-              {recipe.title}
+              {liveRecipe.title}
             </h1>
 
             <div style={{ display: "flex", alignItems: "center", gap: "24px", marginBottom: "40px", flexWrap: "wrap" }}>
@@ -66,19 +107,19 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
                   {getInitials(recipe.chef)}
                 </div>
                 <div>
-                  <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)" }}>{typeof recipe.chef === "string" ? recipe.chef : recipe.chef?.name || "Chef"}</div>
+                  <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)" }}>{typeof liveRecipe.chef === "string" ? liveRecipe.chef : liveRecipe.chef?.name || "Chef"}</div>
                   <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Published Oct 24, 2023</div>
                 </div>
               </div>
 
               {/* Follow Button */}
-              {user && recipe.chef && user._id !== (recipe.chef._id || recipe.chef) && (
+              {user && liveRecipe.chef && user._id !== (liveRecipe.chef._id || liveRecipe.chef) && (
                 <button 
                   onClick={async () => {
                     if (loading.follow) return;
                     setLoading(prev => ({ ...prev, follow: true }));
                     try {
-                      const chefId = recipe.chef._id || recipe.chef;
+                      const chefId = liveRecipe.chef._id || liveRecipe.chef;
                       const response = isFollowing 
                         ? await userAPI.unfollowChef(chefId)
                         : await userAPI.followChef(chefId);
@@ -112,15 +153,15 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
               <div style={{ width: "1px", height: "24px", background: "#e2e8f0" }} />
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ color: "#f59e0b", fontSize: "18px" }}>★</span>
-                <span style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-main)" }}>{recipe.rating}</span>
-                <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>({recipe.reviews} Reviews)</span>
+                <span style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-main)" }}>{reviewsData.rating ?? liveRecipe.rating}</span>
+                <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>({reviewsData.reviews ?? liveRecipe.reviews} Reviews)</span>
               </div>
             </div>
 
             <div style={{ position: "relative", borderRadius: "var(--radius-lg)", overflow: "hidden", boxShadow: "var(--shadow-lg)", marginBottom: "50px" }}>
               <img
-                src={recipe.image ? getImageUrl(recipe.image) : "https://via.placeholder.com/1200x500?text=No+Image+Available"}
-                alt={recipe.title}
+                src={liveRecipe.image ? getImageUrl(liveRecipe.image) : "https://via.placeholder.com/1200x500?text=No+Image+Available"}
+                alt={liveRecipe.title}
                 onError={(e) => { e.currentTarget.src = "https://via.placeholder.com/1200x500?text=No+Image+Available"; }}
                 style={{ width: "100%", height: "500px", objectFit: "cover", display: "block" }}
               />
@@ -131,7 +172,7 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
                     if (loading.favorite) return;
                     setLoading(prev => ({ ...prev, favorite: true }));
                     try {
-                      const response = await recipeAPI.toggleFavorite(recipe._id);
+                      const response = await recipeAPI.toggleFavorite(liveRecipe._id);
                       if (response.data.success) {
                         setIsFavorited(!isFavorited);
                         setUser(response.data.data.user);
@@ -163,10 +204,10 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
               <section>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", borderBottom: "2px solid var(--border-light)", paddingBottom: "12px" }}>
                   <h2 className="serif" style={{ fontSize: "28px", fontWeight: "800" }}>Ingredients</h2>
-                  <span style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: "600" }}>{recipe.ingredients.length} items</span>
+                  <span style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: "600" }}>{liveRecipe.ingredients.length} items</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0" }}>
-                  {recipe.ingredients.map((ing, i) => (
+                  {liveRecipe.ingredients.map((ing, i) => (
                     <div 
                       key={i} 
                       onClick={() => toggleIngredient(i)}
@@ -209,7 +250,7 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
               <section>
                 <h2 className="serif" style={{ fontSize: "28px", fontWeight: "800", marginBottom: "32px", borderBottom: "2px solid var(--border-light)", paddingBottom: "12px" }}>Instructions</h2>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "40px" }}>
-                  {recipe.steps.map((step, i) => {
+                  {liveRecipe.steps.map((step, i) => {
                     const img = step.hasImage ? stepImages[imgIdx++] : null;
                     return (
                       <div key={i} style={{ display: "flex", gap: "24px" }}>
@@ -247,6 +288,148 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
                   })}
                 </div>
               </section>
+
+              {/* Reviews */}
+              <section>
+                <h2 className="serif" style={{ fontSize: "28px", fontWeight: "800", marginBottom: "18px", borderBottom: "2px solid var(--border-light)", paddingBottom: "12px" }}>
+                  Reviews & Ratings
+                </h2>
+
+                {/* Review form */}
+                <div style={{ background: "#f8fafc", border: "1px solid var(--border-light)", borderRadius: "var(--radius-lg)", padding: "18px", marginBottom: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: "var(--navy)" }}>
+                      {user ? (myExistingReview ? "Update your review" : "Leave a review") : "Login to leave a review"}
+                    </div>
+                    {!user && (
+                      <button className="btn-primary" onClick={() => setPage("login")} style={{ padding: "10px 16px" }}>
+                        Login
+                      </button>
+                    )}
+                  </div>
+
+                  {user && (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        setSubmittingReview(true);
+                        setReviewError("");
+                        try {
+                          const res = await recipeAPI.addReview(liveRecipe._id, reviewForm);
+                          if (res.data.success) {
+                            setLiveRecipe(res.data.data);
+                            const reviewsRes = await recipeAPI.getReviews(liveRecipe._id);
+                            if (reviewsRes.data.success) setReviewsData(reviewsRes.data.data);
+                          }
+                        } catch (err) {
+                          setReviewError(err.response?.data?.message || "Failed to submit review");
+                        } finally {
+                          setSubmittingReview(false);
+                        }
+                      }}
+                      style={{ marginTop: "14px", display: "grid", gap: "12px" }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                        <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-muted)" }}>Your rating</div>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          {[1,2,3,4,5].map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => setReviewForm((p) => ({ ...p, rating: n }))}
+                              style={{
+                                width: "38px",
+                                height: "38px",
+                                borderRadius: "12px",
+                                border: "1px solid var(--border-light)",
+                                background: reviewForm.rating >= n ? "rgba(245, 158, 11, 0.12)" : "var(--white)",
+                                color: reviewForm.rating >= n ? "#f59e0b" : "var(--text-muted)",
+                                fontSize: "18px",
+                                fontWeight: "900",
+                                cursor: "pointer",
+                                transition: "var(--transition)",
+                              }}
+                              aria-label={`Rate ${n} star`}
+                            >
+                              ★
+                            </button>
+                          ))}
+                        </div>
+                        <div style={{ marginLeft: "auto", fontSize: "13px", fontWeight: "800", color: "var(--navy)" }}>
+                          {reviewForm.rating}/5
+                        </div>
+                      </div>
+
+                      <textarea
+                        value={reviewForm.comment}
+                        onChange={(e) => setReviewForm((p) => ({ ...p, comment: e.target.value }))}
+                        placeholder="Write a helpful comment (optional)…"
+                        rows={4}
+                        style={{
+                          width: "100%",
+                          borderRadius: "14px",
+                          border: "1px solid var(--border-light)",
+                          padding: "12px 14px",
+                          background: "var(--white)",
+                          outline: "none",
+                          fontSize: "14px",
+                          resize: "vertical",
+                        }}
+                      />
+
+                      {reviewError && (
+                        <div style={{ color: "#ef4444", fontSize: "13px", fontWeight: "700" }}>
+                          {reviewError}
+                        </div>
+                      )}
+
+                      <button className="btn-primary" type="submit" disabled={submittingReview} style={{ justifyContent: "center" }}>
+                        {submittingReview ? "Submitting..." : myExistingReview ? "Update Review" : "Submit Review"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                {/* Review list */}
+                <div style={{ display: "grid", gap: "12px" }}>
+                  {(reviewsData.reviewList || []).length === 0 ? (
+                    <div style={{ padding: "18px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-light)", color: "var(--text-muted)", background: "var(--white)" }}>
+                      No reviews yet. Be the first to review this recipe.
+                    </div>
+                  ) : (
+                    (reviewsData.reviewList || []).map((r, idx) => (
+                      <div key={idx} style={{ background: "var(--white)", border: "1px solid var(--border-light)", borderRadius: "var(--radius-lg)", padding: "16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <div style={{ width: "38px", height: "38px", borderRadius: "12px", overflow: "hidden", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", color: "var(--primary)" }}>
+                              {r.avatar ? (
+                                <img src={getImageUrl(r.avatar)} alt={r.name || "User"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              ) : (
+                                (r.name || "U")[0]?.toUpperCase()
+                              )}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: "14px", fontWeight: "900", color: "var(--navy)" }}>{r.name || "User"}</div>
+                              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                                {new Date(r.updatedAt || r.createdAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: "900", color: "#f59e0b" }}>
+                            {"★".repeat(Math.max(0, Math.min(5, r.rating || 0)))}{"☆".repeat(5 - Math.max(0, Math.min(5, r.rating || 0)))}
+                            <span style={{ color: "var(--text-main)", fontSize: "13px", fontWeight: "800", marginLeft: "6px" }}>{r.rating}/5</span>
+                          </div>
+                        </div>
+                        {r.comment ? (
+                          <div style={{ marginTop: "10px", fontSize: "14px", color: "var(--text-main)", lineHeight: "1.6" }}>
+                            {r.comment}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
             </div>
           </div>
 
@@ -258,12 +441,12 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
                 {[
-                  { icon: "⏱️", label: "Prep Time", val: recipe.prepTime },
-                  { icon: "🔥", label: "Cook Time", val: recipe.cookTime },
-                  { icon: "👥", label: "Servings", val: recipe.servings },
-                  { icon: "⚡", label: "Calories", val: recipe.calories },
-                  { icon: "📈", label: "Difficulty", val: recipe.difficulty },
-                  { icon: "🌍", label: "Cuisine", val: recipe.cuisine }
+                  { icon: "⏱️", label: "Prep Time", val: liveRecipe.prepTime },
+                  { icon: "🔥", label: "Cook Time", val: liveRecipe.cookTime },
+                  { icon: "👥", label: "Servings", val: liveRecipe.servings },
+                  { icon: "⚡", label: "Calories", val: liveRecipe.calories },
+                  { icon: "📈", label: "Difficulty", val: liveRecipe.difficulty },
+                  { icon: "🌍", label: "Cuisine", val: liveRecipe.cuisine }
                 ].map((item, i) => (
                   <div key={i}>
                     <div style={{ fontSize: "20px", marginBottom: "8px" }}>{item.icon}</div>
@@ -277,13 +460,13 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
               </button>
             </div>
 
-            {recipe.tip && (
+            {liveRecipe.tip && (
               <div style={{ background: "linear-gradient(135deg, #fff7ed 0%, #fff 100%)", borderRadius: "var(--radius-lg)", border: "1px solid #fed7aa", padding: "28px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#c2410c", fontSize: "12px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "16px" }}>
                   💡 Chef's Secret Tip
                 </div>
                 <p style={{ fontSize: "14px", color: "#7c2d12", lineHeight: "1.6", fontWeight: "500", fontStyle: "italic" }}>
-                  "{recipe.tip}"
+                  "{liveRecipe.tip}"
                 </p>
               </div>
             )}

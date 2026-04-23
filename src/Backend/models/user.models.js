@@ -45,6 +45,15 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    bio: {
+      type: String,
+      default: null,
+      maxlength: [500, "Bio cannot be more than 500 characters"],
+    },
+    specialty: {
+      type: String,
+      default: null,
+    },
     passwordResetCode: {
       type: String,
       default: null,
@@ -67,6 +76,30 @@ const UserSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Recipe",
+      },
+    ],
+
+    // Notifications (for chefs/admins)
+    notifications: [
+      {
+        type: {
+          type: String,
+          enum: ["follow", "favorite"],
+          required: true,
+        },
+        actor: {
+          _id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+          name: { type: String, default: "" },
+          avatar: { type: String, default: null },
+        },
+        recipe: {
+          _id: { type: mongoose.Schema.Types.ObjectId, ref: "Recipe" },
+          title: { type: String, default: "" },
+          image: { type: String, default: null },
+        },
+        message: { type: String, default: "" },
+        read: { type: Boolean, default: false },
+        createdAt: { type: Date, default: Date.now },
       },
     ],
   },

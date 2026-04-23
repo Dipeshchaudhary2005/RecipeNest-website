@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { recipeAPI } from "../../services/api";
+import { recipeAPI, userAPI } from "../../services/api";
 import CreateRecipeModal from "../../components/CreateRecipeModal";
 import SettingsModal from "../../components/SettingsModal";
 import RecipeCard from "../../components/RecipeCard";
@@ -9,7 +9,8 @@ import { getImageUrl } from "../../utils";
 const NAV = [
   { icon: "🏠", label: "Feed", id: "feed" },
   { icon: "👨‍🍳", label: "My Creations", id: "creations" },
-  { icon: "📈", label: "Analytics", id: "analytics" },
+  { icon: "👥", label: "Followers", id: "followers" },
+  { icon: "👤", label: "Profile", id: "profile" },
 ];
 
 const TABS = ["All Recipes", "Live", "Pending Review", "Rejected"];
@@ -27,9 +28,15 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
   const [activeCategory, setActiveCategory] = useState("All");
   const [recipes, setRecipes] = useState([]);
   const [feedRecipes, setFeedRecipes] = useState([]);
+  const [myStats, setMyStats] = useState(null);
+  const [followers, setFollowers] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [followersTab, setFollowersTab] = useState("notifications"); // notifications | followers
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
   const displayName = user?.name ? user.name : "Chef";
@@ -38,14 +45,19 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
   const sectionTitles = {
     feed: "Community Feed",
     creations: "My Masterpieces",
-    analytics: "Performance Insights",
+    followers: "Followers & Notifications",
+    profile: "Chef Profile",
   };
 
   useEffect(() => {
     if (activeNav === "creations") {
       fetchMyRecipes();
+      fetchMyStats();
     } else if (activeNav === "feed") {
       fetchFeed();
+    } else if (activeNav === "followers") {
+      fetchFollowers();
+      fetchNotifications();
     }
   }, [activeNav]);
 
@@ -63,12 +75,23 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
     }
   };
 
+  const fetchMyStats = async () => {
+    try {
+      const res = await recipeAPI.getMyStats();
+      if (res.data.success) setMyStats(res.data.data);
+    } catch (err) {
+      console.error("Error fetching chef stats:", err);
+      setMyStats(null);
+    }
+  };
+
   const fetchFeed = async () => {
     try {
       setLoading(true);
       const response = await recipeAPI.getAll({ status: "Live", limit: 50 });
       if (response.data.success) {
-        setFeedRecipes(response.data.data);
+        const data = response.data.data;
+        setFeedRecipes(Array.isArray(data) ? data : data.recipes || []);
       }
     } catch (err) {
       console.error("Error fetching feed:", err);
@@ -77,13 +100,57 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
     }
   };
 
-  const filteredCreations = activeTab === "All Recipes" 
-    ? recipes 
-    : recipes.filter(r => r.status === activeTab);
+  const handleNotificationClick = async (notification) => {
+    if (notification.read) return;
+    try {
+      await userAPI.markNotificationsRead([notification._id]);
+      fetchNotifications();
+    } catch (e) {
+      console.error("Error marking notification as read:", e);
+    }
+  };
 
-  const filteredFeed = activeCategory === "All"
-    ? feedRecipes
-    : feedRecipes.filter(r => r.tag === activeCategory || r.cuisine === activeCategory);
+  const fetchFollowers = async () => {
+    try {
+      setLoading(true);
+      const res = await userAPI.getMyFollowers();
+      if (res.data.success) {
+        setFollowers(res.data.data.followers || []);
+      }
+    } catch (err) {
+      console.error("Error fetching followers:", err);
+      setFollowers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await userAPI.getNotifications();
+      if (res.data.success) {
+        setNotifications(res.data.data.notifications || []);
+        setUnreadCount(res.data.data.unread || 0);
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  };
+
+  const filteredCreations = recipes.filter(r => {
+    const matchesTab = activeTab === "All Recipes" || r.status === activeTab;
+    const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesTab && matchesSearch;
+  });
+
+  const filteredFeed = feedRecipes.filter(r => {
+    const matchesCategory = activeCategory === "All" || r.tag === activeCategory || r.cuisine === activeCategory;
+    const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          r.chef?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="sidebar-layout">
@@ -103,7 +170,14 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
                 onClick={() => setActiveNav(item.id)}
               >
                 <span style={{ fontSize: "18px" }}>{item.icon}</span>
-                {item.label}
+                <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {item.label}
+                  {item.id === "followers" && unreadCount > 0 && (
+                    <span style={{ fontSize: "11px", fontWeight: "900", padding: "2px 8px", borderRadius: "99px", background: "rgba(255,49,49,0.12)", color: "var(--primary)", border: "1px solid rgba(255,49,49,0.22)" }}>
+                      {unreadCount}
+                    </span>
+                  )}
+                </span>
               </button>
             ))}
           </div>
@@ -138,7 +212,8 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
             <p className="page-sub">
               {activeNav === "feed" ? "Stay inspired by fellow chefs" :
                activeNav === "creations" ? "Hi " + displayName + ", manage your culinary portfolio" :
-               "Hi " + displayName + ", track your impact and growth"}
+               activeNav === "followers" ? "Hi " + displayName + ", track your impact and growth" :
+               "View and edit your public chef profile"}
             </p>
           </div>
           {activeNav === "creations" && (
@@ -151,6 +226,30 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
             </button>
           )}
         </div>
+        
+        {(activeNav === "feed" || activeNav === "creations") && (
+          <div style={{ position: "relative", marginBottom: "24px", width: "100%", maxWidth: "450px" }}>
+            <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "16px", color: "var(--text-muted)" }}>🔍</span>
+            <input 
+              type="text" 
+              placeholder={activeNav === "feed" ? "Search dishes or chefs..." : "Search your recipes..."} 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ 
+                width: "100%", 
+                padding: "12px 16px 12px 48px", 
+                borderRadius: "16px", 
+                border: "1px solid var(--border-light)", 
+                background: "var(--white)", 
+                outline: "none",
+                fontSize: "14px",
+                transition: "all 0.3s ease"
+              }}
+              onFocus={(e) => e.target.style.borderColor = "var(--primary)"}
+              onBlur={(e) => e.target.style.borderColor = "var(--border-light)"}
+            />
+          </div>
+        )}
 
         {activeNav === "feed" ? (
           // Social Feed View
@@ -216,9 +315,10 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
             {/* Stats Row */}
             <div className="stats-row" style={{ marginBottom: "40px" }}>
               {[
-                { label: "Total Recipes", val: recipes.length.toString(), icon: "📝", bg: "rgba(59, 130, 246, 0.1)", color: "#3b82f6" },
-                { label: "Average Rating", val: "4.8", icon: "⭐", bg: "rgba(234, 179, 8, 0.1)", color: "#eab308" },
-                { label: "Community Saves", val: "1.2k", icon: "🔖", bg: "rgba(16, 185, 129, 0.1)", color: "#10b981" }
+                { label: "Total Recipes", val: (myStats?.totalRecipes ?? recipes.length).toString(), icon: "📝", bg: "rgba(59, 130, 246, 0.1)", color: "#3b82f6" },
+                { label: "Average Rating", val: (myStats?.avgRating ?? 0).toString(), icon: "⭐", bg: "rgba(234, 179, 8, 0.1)", color: "#eab308" },
+                { label: "Community Saves", val: (myStats?.totalSaves ?? 0).toString(), icon: "🔖", bg: "rgba(16, 185, 129, 0.1)", color: "#10b981" },
+                { label: "Engagement", val: `${myStats?.engagementScore ?? 0}%`, icon: "📣", bg: "rgba(255, 49, 49, 0.1)", color: "var(--primary)" },
               ].map((stat, i) => (
                 <div key={i} className="stat-card">
                   <div className="stat-icon" style={{ background: stat.bg, color: stat.color }}>{stat.icon}</div>
@@ -228,6 +328,65 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Recent creations */}
+            <div style={{ marginBottom: "28px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "16px" }}>
+                <div>
+                  <div style={{ fontSize: "12px", fontWeight: "800", color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                    Recent creations
+                  </div>
+                  <div style={{ fontSize: "18px", fontWeight: "900", color: "var(--navy)", marginTop: "4px" }}>
+                    Latest recipes you submitted
+                  </div>
+                </div>
+                <button
+                  onClick={() => { fetchMyRecipes(); fetchMyStats(); }}
+                  style={{ background: "var(--white)", border: "1px solid var(--border-light)", borderRadius: "12px", padding: "10px 14px", fontSize: "13px", fontWeight: "800", cursor: "pointer" }}
+                >
+                  Refresh
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
+                {(myStats?.recent || recipes.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5)).map((r) => (
+                  <div
+                    key={r._id}
+                    className="card-hover"
+                    onClick={() => { setSelectedRecipe(r); setPage("recipe-detail"); }}
+                    style={{ background: "var(--white)", border: "1px solid var(--border-light)", borderRadius: "18px", overflow: "hidden", cursor: "pointer" }}
+                  >
+                    <div style={{ display: "flex", gap: "12px", padding: "14px" }}>
+                      <div style={{ width: "62px", height: "62px", borderRadius: "14px", overflow: "hidden", background: "var(--bg)", flex: "0 0 auto" }}>
+                        <img
+                          src={getImageUrl(r.image)}
+                          alt={r.title}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getImageUrl("https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=400&q=60"); }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "flex-start" }}>
+                          <div style={{ fontSize: "14px", fontWeight: "900", color: "var(--navy)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {r.title}
+                          </div>
+                          <span className={`badge ${STATUS_BADGE[r.status] || ""}`} style={{ border: "1px solid rgba(0,0,0,0.05)" }}>
+                            ● {r.status || "Draft"}
+                          </span>
+                        </div>
+                        <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--text-muted)" }}>
+                          {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}
+                        </div>
+                        <div style={{ marginTop: "8px", display: "flex", gap: "10px", fontSize: "12px", color: "var(--text-muted)", flexWrap: "wrap" }}>
+                          <span>⭐ {(r.rating ?? 0).toFixed ? (r.rating ?? 0).toFixed(1) : (r.rating ?? 0)}</span>
+                          <span>💬 {r.reviews ?? 0}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Tabs */}
@@ -259,7 +418,15 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
                     style={{ background: "var(--white)", borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border-light)", cursor: "pointer", transition: "var(--transition)" }}
                   >
                     <div style={{ position: "relative", height: "180px" }}>
-                      <img src={getImageUrl(recipe.image)} alt={recipe.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img
+                        src={getImageUrl(recipe.image)}
+                        alt={recipe.title}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = getImageUrl("https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80");
+                        }}
+                      />
                       <span className={`badge ${STATUS_BADGE[recipe.status]}`} style={{ position: "absolute", top: "12px", left: "12px", border: "1px solid rgba(0,0,0,0.05)" }}>
                         ● {recipe.status}
                       </span>
@@ -322,34 +489,197 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
               </div>
             )}
           </div>
-        ) : (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-             <div style={{ width: "120px", height: "120px", borderRadius: "40px", background: "var(--primary)", color: "white", fontSize: "40px", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.1)" }}>
-                {user?.avatar ? <img src={getImageUrl(user.avatar)} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : displayName.split(" ").map(x => x[0]).join("").slice(0, 2).toUpperCase()}
-              </div>
-              <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--navy)" }}>{displayName}</h2>
-              <p style={{ color: "var(--text-muted)", marginBottom: "32px" }}>{user?.email}</p>
-              
-              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "16px", maxWidth: "600px", margin: "0 auto" }}>
-                <div style={{ flex: 1, minWidth: "200px", padding: "20px", background: "var(--white)", borderRadius: "20px", border: "1px solid var(--border-light)" }}>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", marginBottom: "4px" }}>PHONE</div>
-                  <div style={{ fontWeight: "700" }}>{user?.phone || "Not provided"}</div>
-                </div>
-                <div style={{ flex: 1, minWidth: "200px", padding: "20px", background: "var(--white)", borderRadius: "20px", border: "1px solid var(--border-light)" }}>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", marginBottom: "4px" }}>ADDRESS</div>
-                  <div style={{ fontWeight: "700" }}>{user?.address || "Not provided"}</div>
-                </div>
+        ) : activeNav === "followers" ? (
+      <div className="scroll-container">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", marginBottom: "18px" }}>
+              <div style={{ display: "flex", gap: "10px", background: "var(--white)", border: "1px solid var(--border-light)", borderRadius: "16px", padding: "6px" }}>
+                {[
+                  { id: "notifications", label: `Notifications${unreadCount ? ` (${unreadCount})` : ""}` },
+                  { id: "followers", label: `Followers (${followers.length})` },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setFollowersTab(t.id)}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "12px",
+                      border: "none",
+                      background: followersTab === t.id ? "rgba(255,49,49,0.12)" : "transparent",
+                      color: followersTab === t.id ? "var(--primary)" : "var(--text-muted)",
+                      fontWeight: "900",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
 
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  onClick={() => { fetchFollowers(); fetchNotifications(); }}
+                  className="btn-secondary"
+                  style={{ padding: "10px 14px", borderRadius: "12px" }}
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await userAPI.markNotificationsRead();
+                      await fetchNotifications();
+                    } catch (e) {
+                      // ignore
+                    }
+                  }}
+                  className="btn-primary"
+                  style={{ padding: "10px 14px", borderRadius: "12px" }}
+                >
+                  Mark all read
+                </button>
+              </div>
+            </div>
+
+            {followersTab === "notifications" ? (
+              <div style={{ display: "grid", gap: "12px" }}>
+                {notifications.length === 0 ? (
+                  <div style={{ background: "var(--white)", border: "1px dashed var(--border-light)", borderRadius: "18px", padding: "18px", color: "var(--text-muted)" }}>
+                    No notifications yet.
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n._id || `${n.type}-${n.createdAt}`}
+                      style={{
+                        background: n.read ? "var(--white)" : "rgba(255,49,49,0.03)",
+                        border: `1px solid ${n.read ? "var(--border-light)" : "rgba(255,49,49,0.15)"}`,
+                        borderRadius: "18px",
+                        padding: "14px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        cursor: n.read ? "default" : "pointer",
+                        transition: "all 0.2s ease",
+                        opacity: n.read ? 0.75 : 1
+                      }}
+                      onClick={() => handleNotificationClick(n)}
+                    >
+                      <div style={{ width: "46px", height: "46px", borderRadius: "14px", overflow: "hidden", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", color: "var(--primary)" }}>
+                        {n.actor?.avatar ? (
+                          <img src={getImageUrl(n.actor.avatar)} alt={n.actor?.name || "User"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          (n.actor?.name || "U")[0]?.toUpperCase()
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: "900", color: n.read ? "var(--text-muted)" : "var(--navy)", fontSize: "14px" }}>
+                          {n.message || (n.type === "follow" ? "New follower" : "Recipe saved")}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                          <span>{new Date(n.createdAt).toLocaleString()}</span>
+                          {!n.read && <span style={{ color: "var(--primary)", fontWeight: "900" }}>• New</span>}
+                        </div>
+                      </div>
+                      {n.recipe?._id && (
+                        <button
+                          className="btn-secondary"
+                          style={{ padding: "10px 12px", borderRadius: "12px", whiteSpace: "nowrap" }}
+                          onClick={() => {
+                            setSelectedRecipe({ _id: n.recipe._id, title: n.recipe.title, image: n.recipe.image });
+                            setPage("recipe-detail");
+                          }}
+                        >
+                          View
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
+                {followers.length === 0 ? (
+                  <div style={{ background: "var(--white)", border: "1px dashed var(--border-light)", borderRadius: "18px", padding: "18px", color: "var(--text-muted)" }}>
+                    No followers yet.
+                  </div>
+                ) : (
+                  followers.map((f) => (
+                    <div key={f._id} style={{ background: "var(--white)", border: "1px solid var(--border-light)", borderRadius: "18px", padding: "14px", display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div style={{ width: "50px", height: "50px", borderRadius: "16px", overflow: "hidden", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", color: "var(--primary)" }}>
+                        {f.avatar ? (
+                          <img src={getImageUrl(f.avatar)} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          (f.name || "U")[0]?.toUpperCase()
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: "900", color: "var(--navy)" }}>{f.name}</div>
+                        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+                          Followed since {new Date(f.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <span className="badge" style={{ background: "rgba(59,130,246,0.10)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.18)" }}>
+                        {f.role || "user"}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        ) : activeNav === "profile" ? (
+          <div className="scroll-container" style={{ textAlign: "center", padding: "40px 0" }}>
+            <div style={{ position: "relative", width: "140px", height: "140px", margin: "0 auto 24px" }}>
+              <div style={{ width: "140px", height: "140px", borderRadius: "48px", background: "var(--primary)", color: "white", fontSize: "48px", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.1)", border: "4px solid var(--white)" }}>
+                {user?.avatar ? <img src={getImageUrl(user.avatar)} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (displayName || "C")[0].toUpperCase()}
+              </div>
+              <button 
+                onClick={() => setIsProfileOpen(true)}
+                style={{ position: "absolute", bottom: "0", right: "0", width: "42px", height: "42px", borderRadius: "14px", background: "var(--navy)", color: "white", border: "3px solid var(--white)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "18px" }}
+              >
+                ✏️
+              </button>
+            </div>
+
+            <h2 style={{ fontSize: "32px", fontWeight: "900", color: "var(--navy)", marginBottom: "8px" }}>{user?.name}</h2>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "32px" }}>
+              <span className="badge-live" style={{ padding: "6px 16px", borderRadius: "99px", fontSize: "13px", fontWeight: "800" }}>Professional Chef</span>
+              {user?.specialty && <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>• {user.specialty}</span>}
+            </div>
+
+            <p style={{ color: "var(--text-main)", fontSize: "16px", lineHeight: "1.8", maxWidth: "600px", margin: "0 auto 40px", fontStyle: user?.bio ? "normal" : "italic" }}>
+              {user?.bio || "No bio provided yet. Add one to let the community know about your culinary journey!"}
+            </p>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "20px", maxWidth: "800px", margin: "0 auto" }}>
+              {[
+                { label: "EMAIL", val: user?.email, icon: "📧" },
+                { label: "PHONE", val: user?.phone || "Not provided", icon: "📞" },
+                { label: "ADDRESS", val: user?.address || "Not provided", icon: "📍" },
+                { label: "FOLLOWERS", val: followers.length.toString(), icon: "👥" }
+              ].map((item, idx) => (
+                <div key={idx} style={{ padding: "24px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)", textAlign: "left", display: "flex", gap: "16px", alignItems: "center" }}>
+                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>{item.icon}</div>
+                  <div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "800", letterSpacing: "0.05em" }}>{item.label}</div>
+                    <div style={{ fontWeight: "700", color: "var(--navy)", marginTop: "2px" }}>{item.val}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: "48px", display: "flex", justifyContent: "center" }}>
               <button 
                 className="btn-primary" 
-                style={{ marginTop: "40px", padding: "14px 40px" }}
+                style={{ padding: "16px 60px", borderRadius: "18px" }}
                 onClick={() => setIsProfileOpen(true)}
               >
-                Edit My Profile
+                Edit Full Profile
               </button>
+            </div>
           </div>
-        )}
+        ) : null}
 
         <CreateRecipeModal 
           isOpen={isModalOpen} 

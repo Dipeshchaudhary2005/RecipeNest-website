@@ -12,6 +12,7 @@ const NAV = [
 
 export default function AdminDashboardPage({ setPage, onLogout }) {
   const [activeNav, setActiveNav] = useState("dashboard");
+  const [recipesFilterOverride, setRecipesFilterOverride] = useState(null);
 
   return (
     <div className="sidebar-layout" style={{ background: "var(--bg)" }}>
@@ -69,9 +70,19 @@ export default function AdminDashboardPage({ setPage, onLogout }) {
 
       {/* Main Content */}
       <main style={{ flex: 1, padding: "48px 60px" }}>
-        {activeNav === "dashboard" && <AdminOverview setActiveNav={setActiveNav} />}
+        {activeNav === "dashboard" && (
+          <AdminOverview
+            setActiveNav={setActiveNav}
+            setRecipesFilterOverride={setRecipesFilterOverride}
+          />
+        )}
         {activeNav === "users" && <AdminUsers />}
-        {activeNav === "recipes" && <AdminRecipes />}
+        {activeNav === "recipes" && (
+          <AdminRecipes
+            filterOverride={recipesFilterOverride}
+            clearFilterOverride={() => setRecipesFilterOverride(null)}
+          />
+        )}
         {activeNav === "analytics" && <AdminAnalytics />}
         {activeNav === "reports" && <AdminReports />}
       </main>
@@ -79,7 +90,7 @@ export default function AdminDashboardPage({ setPage, onLogout }) {
   );
 }
 
-function AdminOverview({ setActiveNav }) {
+function AdminOverview({ setActiveNav, setRecipesFilterOverride }) {
   const [applications, setApplications] = useState([]);
   const [stats, setStats] = useState({ totalRecipes: 0, totalUsers: 0, newChefs: 0, engagement: 0, pendingRecipes: 0 });
   // eslint-disable-next-line no-unused-vars
@@ -116,6 +127,30 @@ function AdminOverview({ setActiveNav }) {
       console.error("Dashboard load error:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApproveFromOverview = async (recipeId) => {
+    try {
+      await adminAPI.approveRecipe(recipeId);
+      await loadDashboardData();
+      alert("Recipe approved");
+    } catch (err) {
+      console.error("Approve error:", err);
+      alert("Failed to approve recipe");
+    }
+  };
+
+  const handleRejectFromOverview = async (recipeId) => {
+    const reason = prompt("Enter rejection reason:");
+    if (!reason) return;
+    try {
+      await adminAPI.rejectRecipe(recipeId, reason);
+      await loadDashboardData();
+      alert("Recipe rejected");
+    } catch (err) {
+      console.error("Reject error:", err);
+      alert("Failed to reject recipe");
     }
   };
 
@@ -165,13 +200,30 @@ function AdminOverview({ setActiveNav }) {
                     <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>By {app.name} • {app.time}</div>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setActiveNav("recipes")}
-                  className="btn-primary" 
-                  style={{ background: "var(--primary)", border: "none", padding: "6px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", color: "#fff", cursor: "pointer" }}
-                >
-                  Review
-                </button>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <button
+                    onClick={() => handleApproveFromOverview(app.id)}
+                    style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "6px 10px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", color: "#10b981", cursor: "pointer" }}
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleRejectFromOverview(app.id)}
+                    style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "6px 10px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", color: "#ef4444", cursor: "pointer" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRecipesFilterOverride("Pending Review");
+                      setActiveNav("recipes");
+                    }}
+                    className="btn-primary"
+                    style={{ background: "var(--primary)", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", color: "#fff", cursor: "pointer" }}
+                  >
+                    Review
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -627,7 +679,7 @@ function AdminUsers() {
   );
 }
 
-function AdminRecipes() {
+function AdminRecipes({ filterOverride, clearFilterOverride }) {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -657,6 +709,13 @@ function AdminRecipes() {
     };
   }, []);
 
+  useEffect(() => {
+    if (filterOverride) {
+      setFilterStatus(filterOverride);
+      clearFilterOverride && clearFilterOverride();
+    }
+  }, [filterOverride, clearFilterOverride]);
+
   const fetchRecipes = async () => {
     try {
       setLoading(true);
@@ -684,13 +743,10 @@ function AdminRecipes() {
   const handleApproveRecipe = async (recipeId) => {
     try {
       await adminAPI.approveRecipe(recipeId);
-      setRecipes(recipes.map(r => r.id === recipeId ? { ...r, status: "Live" } : r));
-      alert("Recipe approved successfully");
+      setRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, status: "Live" } : r));
     } catch (err) {
       console.error("Error approving recipe:", err);
-      // Optimistic update for demo
-      setRecipes(recipes.map(r => r.id === recipeId ? { ...r, status: "Live" } : r));
-      console.log("Recipe approved (demo)");
+      alert("Failed to approve recipe");
     }
   };
 
@@ -699,13 +755,10 @@ function AdminRecipes() {
     if (reason) {
       try {
         await adminAPI.rejectRecipe(recipeId, reason);
-        setRecipes(recipes.filter(r => r.id !== recipeId));
-        alert("Recipe rejected successfully");
+        setRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, status: "Rejected" } : r));
       } catch (err) {
         console.error("Error rejecting recipe:", err);
-        // Optimistic update for demo
-        setRecipes(recipes.filter(r => r.id !== recipeId));
-        console.log("Recipe rejected (demo)");
+        alert("Failed to reject recipe");
       }
     }
   };

@@ -29,6 +29,7 @@ export default function LoginPage({ setPage, setUser, onBack }) {
         // Permanent Storage
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(user));
+        localStorage.setItem("justLoggedIn", "true");
         
         // App State
         setUser(user);

@@ -20,6 +20,8 @@ export default function ProfileUpdateModal({ isOpen, onClose, user, onUpdate }) 
         name: user.name || "",
         phone: user.phone || "",
         address: user.address || "",
+        bio: user.bio || "",
+        specialty: user.specialty || "",
       });
       setAvatarPreview(getImageUrl(user.avatar) || null);
     }
@@ -98,10 +100,13 @@ export default function ProfileUpdateModal({ isOpen, onClose, user, onUpdate }) 
         borderRadius: "28px",
         width: "100%",
         maxWidth: "500px",
-        overflow: "hidden",
+        maxHeight: "90vh",
+        overflowY: "auto",
         position: "relative",
         boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-        animation: "modalFadeUp 0.4s ease-out"
+        animation: "modalFadeUp 0.4s ease-out",
+        msOverflowStyle: "none",
+        scrollbarWidth: "none"
       }}>
         {/* Header */}
         <div style={{
@@ -212,6 +217,32 @@ export default function ProfileUpdateModal({ isOpen, onClose, user, onUpdate }) 
                 style={{ width: "100%", padding: "12px 16px", borderRadius: "14px", border: "1px solid var(--border-light)", background: "var(--bg)", outline: "none", fontSize: "15px", resize: "none" }}
               />
             </div>
+
+            <div className="form-group">
+              <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "8px", color: "var(--text-main)" }}>Bio</label>
+              <textarea 
+                name="bio" 
+                rows="3"
+                value={formData.bio}
+                onChange={handleInputChange}
+                placeholder="Tell us about yourself..."
+                style={{ width: "100%", padding: "12px 16px", borderRadius: "14px", border: "1px solid var(--border-light)", background: "var(--bg)", outline: "none", fontSize: "15px", resize: "none" }}
+              />
+            </div>
+
+            {user?.role === "chef" && (
+              <div className="form-group">
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "700", marginBottom: "8px", color: "var(--text-main)" }}>Specialty</label>
+                <input 
+                  type="text" 
+                  name="specialty" 
+                  value={formData.specialty}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Italian Cuisine, Pastry, Seafood"
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: "14px", border: "1px solid var(--border-light)", background: "var(--bg)", outline: "none", fontSize: "15px" }}
+                />
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", gap: "12px", marginTop: "32px", paddingTop: "24px", borderTop: "1px solid var(--border-light)" }}>

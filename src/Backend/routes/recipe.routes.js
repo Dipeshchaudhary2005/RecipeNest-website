@@ -40,12 +40,6 @@ router.get("/", recipeController.getAllRecipes);
 router.get("/search", recipeController.searchRecipes);
 
 /**
- * GET /api/recipes/:id
- * Get a single recipe by ID
- */
-router.get("/:id", recipeController.getRecipeById);
-
-/**
  * GET /api/recipes/chef/:chefId
  * Get all recipes by a specific chef
  */
@@ -61,6 +55,33 @@ router.get("/chef/:chefId", recipeController.getRecipesByChef);
  * Requires authentication
  */
 router.get("/my-recipes", protect, recipeController.getMyRecipes);
+
+/**
+ * GET /api/recipes/my-stats
+ * Get creation stats for the logged-in chef
+ * Requires authentication
+ */
+router.get("/my-stats", protect, recipeController.getMyStats);
+
+/**
+ * POST /api/recipes/:id/reviews
+ * Add or update a review (rating + comment) for a recipe
+ * Requires authentication
+ */
+router.post("/:id/reviews", protect, recipeController.addOrUpdateReview);
+
+/**
+ * GET /api/recipes/:id/reviews
+ * Get reviews for a recipe
+ * Public
+ */
+router.get("/:id/reviews", recipeController.getRecipeReviews);
+
+/**
+ * GET /api/recipes/:id
+ * Get a single recipe by ID
+ */
+router.get("/:id", recipeController.getRecipeById);
 
 /**
  * POST /api/recipes

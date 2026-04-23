@@ -40,6 +40,8 @@ export const authAPI = {
 export const recipeAPI = {
   getAll: (params) => api.get("/recipes", { params }),
   getById: (id) => api.get(`/recipes/${id}`),
+  getReviews: (id) => api.get(`/recipes/${id}/reviews`),
+  addReview: (id, { rating, comment }) => api.post(`/recipes/${id}/reviews`, { rating, comment }),
   create: (recipeData) => {
     const isFormData = recipeData instanceof FormData;
     return api.post("/recipes", recipeData, {
@@ -58,6 +60,7 @@ export const recipeAPI = {
   },
   delete: (id) => api.delete(`/recipes/${id}`),
   getMyRecipes: (params) => api.get("/recipes/my-recipes", { params }),
+  getMyStats: () => api.get("/recipes/my-stats"),
   toggleFavorite: (id) => api.put(`/users/favorites/${id}`),
 };
 
@@ -71,6 +74,9 @@ export const userAPI = {
   }),
   followChef: (id) => api.put(`/users/follow/${id}`),
   unfollowChef: (id) => api.put(`/users/unfollow/${id}`),
+  getMyFollowers: () => api.get("/users/followers"),
+  getNotifications: () => api.get("/users/notifications"),
+  markNotificationsRead: (ids) => api.patch("/users/notifications/read", ids ? { ids } : {}),
 };
 
 export const adminAPI = {

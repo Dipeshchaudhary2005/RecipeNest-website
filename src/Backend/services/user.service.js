@@ -1,10 +1,33 @@
 const User = require("../models/user.models");
+const Recipe = require("../models/recipe.models");
 const jwt = require("jsonwebtoken");
 const { deleteOldFile, getFileUrl } = require("../config/multer.config");
 const { JWT_SECRET, JWT_EXPIRES_IN } = require("../config/config");
 const emailService = require("./email.service");
 
 const generateToken = (payload) => jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+const pushNotification = async (targetUserId, notification) => {
+  if (!targetUserId) return;
+  try {
+    await User.findByIdAndUpdate(
+      targetUserId,
+      {
+        $push: {
+          notifications: {
+            $each: [{ ...notification, createdAt: new Date(), read: false }],
+            $position: 0,
+            $slice: 100,
+          },
+        },
+      },
+      { new: false }
+    );
+  } catch (e) {
+    // Non-blocking
+    console.warn("Notification push failed:", e.message);
+  }
+};
 
 const registerUser = async (userData) => {
   try {
@@ -115,7 +138,7 @@ const getUserProfile = async (userId) => {
 
 const updateUserProfile = async (userId, updateData) => {
   try {
-    const allowedUpdates = ["name", "phone", "address", "avatar"];
+    const allowedUpdates = ["name", "phone", "address", "avatar", "bio", "specialty"];
     const filteredData = {};
     for (const key of allowedUpdates) {
       if (updateData[key] !== undefined) {
@@ -438,6 +461,13 @@ const followChef = async (userId, chefId) => {
       .populate("following", "name avatar email role")
       .populate("favorites", "title image chef difficulty time");
 
+    // Notify chef (non-blocking)
+    await pushNotification(chefId, {
+      type: "follow",
+      actor: { _id: userId, name: user?.name || "", avatar: user?.avatar || null },
+      message: `${user?.name || "Someone"} started following you`,
+    });
+
     return { success: true, message: "Chef followed successfully", data: { user } };
   } catch (error) {
     console.error("Error in followChef:", error.message);
@@ -496,6 +526,24 @@ const toggleFavoriteRecipe = async (userId, recipeId) => {
       .populate("following", "name avatar email role")
       .populate("favorites", "title image chef difficulty time");
 
+    // Notify recipe chef only when added to favorites
+    if (!isFavorite) {
+      try {
+        const recipe = await Recipe.findById(recipeId).select("chef title image").lean();
+        const chefId = recipe?.chef?.toString?.() || recipe?.chef;
+        if (chefId && chefId.toString() !== userId.toString()) {
+          await pushNotification(chefId, {
+            type: "favorite",
+            actor: { _id: userId, name: updatedUser?.name || "", avatar: updatedUser?.avatar || null },
+            recipe: { _id: recipeId, title: recipe?.title || "", image: recipe?.image || null },
+            message: `${updatedUser?.name || "Someone"} saved your recipe: ${recipe?.title || "Recipe"}`,
+          });
+        }
+      } catch (e) {
+        // ignore notification errors
+      }
+    }
+
     return { 
       success: true, 
       message: isFavorite ? "Recipe removed from favorites" : "Recipe added to favorites",
@@ -503,6 +551,60 @@ const toggleFavoriteRecipe = async (userId, recipeId) => {
     };
   } catch (error) {
     console.error("Error in toggleFavoriteRecipe:", error.message);
+    throw error;
+  }
+};
+
+const getFollowersForChef = async (chefId) => {
+  try {
+    const followers = await User.find({ following: chefId, isActive: true })
+      .select("name avatar role createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+    return { success: true, data: { followers, total: followers.length } };
+  } catch (error) {
+    console.error("Error in getFollowersForChef:", error.message);
+    throw error;
+  }
+};
+
+const getNotifications = async (userId) => {
+  try {
+    const user = await User.findById(userId).select("notifications role").lean();
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+    const list = (user.notifications || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const unread = list.filter((n) => !n.read).length;
+    return { success: true, data: { notifications: list, unread } };
+  } catch (error) {
+    console.error("Error in getNotifications:", error.message);
+    throw error;
+  }
+};
+
+const markNotificationsRead = async (userId, body = {}) => {
+  try {
+    const { ids } = body || {};
+    if (Array.isArray(ids) && ids.length > 0) {
+      await User.updateOne(
+        { _id: userId },
+        { $set: { "notifications.$[n].read": true } },
+        { arrayFilters: [{ "n._id": { $in: ids } }] }
+      );
+    } else {
+      await User.updateOne(
+        { _id: userId },
+        { $set: { "notifications.$[].read": true } }
+      );
+    }
+    const updated = await User.findById(userId).select("notifications").lean();
+    const list = updated?.notifications || [];
+    return { success: true, data: { notifications: list, unread: list.filter((n) => !n.read).length } };
+  } catch (error) {
+    console.error("Error in markNotificationsRead:", error.message);
     throw error;
   }
 };
@@ -523,4 +625,7 @@ module.exports = {
   followChef,
   unfollowChef,
   toggleFavoriteRecipe,
+  getFollowersForChef,
+  getNotifications,
+  markNotificationsRead,
 };
