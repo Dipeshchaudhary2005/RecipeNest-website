@@ -103,13 +103,17 @@ const loginUser = async (email, password) => {
     }
 
     const token = user.generateToken();
-    const userObject = user.toObject();
-    delete userObject.password;
+    
+    // Populate before returning
+    const populatedUser = await User.findById(user._id)
+      .select("-password")
+      .populate("following", "name avatar email role")
+      .populate("favorites", "title image chef difficulty time");
 
     return {
       success: true,
       message: "Login successful",
-      data: { user: userObject, token },
+      data: { user: populatedUser, token },
     };
   } catch (error) {
     console.error("Error in loginUser:", error.message);

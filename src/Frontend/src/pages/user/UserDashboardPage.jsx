@@ -55,15 +55,37 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
     }
   };
 
-  const filteredRecipes = recipes.filter(r => {
-    const matchesCategory = activeCategory === "All" || r.tag === activeCategory || r.cuisine === activeCategory;
-    const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          r.chef?.name?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const getFilteredItems = () => {
+    if (activeNav === "feed") {
+      return recipes.filter(r => {
+        const matchesCategory = activeCategory === "All" || r.tag === activeCategory || r.cuisine === activeCategory;
+        const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                              r.chef?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCategory && matchesSearch;
+      });
+    }
+    
+    if (activeNav === "favorites") {
+      const favorites = user?.favorites || [];
+      return favorites.filter(r => 
+        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.chef?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
 
-  const featuredRecipe = filteredRecipes[0];
-  const trendingRecipes = filteredRecipes.slice(1);
+    if (activeNav === "following") {
+      const following = user?.following || [];
+      return following.filter(f => 
+        f.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    return [];
+  };
+
+  const filteredItems = getFilteredItems();
+  const featuredRecipe = activeNav === "feed" ? filteredItems[0] : null;
+  const trendingRecipes = activeNav === "feed" ? filteredItems.slice(1) : filteredItems;
 
   const renderFeed = () => (
     <div className="scroll-container">
@@ -112,7 +134,7 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
-        {filteredRecipes.length > 0 ? (
+        {filteredItems.length > 0 ? (
           <>
             {featuredRecipe && (
               <div style={{ background: "var(--white)", borderRadius: "32px", overflow: "hidden", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border-light)" }}>
@@ -193,12 +215,12 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
                           }}
                           style={{
                             width: "48px", height: "48px", borderRadius: "16px", border: "1px solid var(--border-light)",
-                            background: "var(--white)", color: user?.favorites?.includes(featuredRecipe._id) ? "var(--primary)" : "var(--text-muted)",
+                            background: "var(--white)", color: user?.favorites?.some(fav => (fav._id || fav) === featuredRecipe._id) ? "var(--primary)" : "var(--text-muted)",
                             fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                             transition: "var(--transition)", boxShadow: "var(--shadow-sm)"
                           }}
                         >
-                          {user?.favorites?.includes(featuredRecipe._id) ? "❤️" : "🤍"}
+                          {user?.favorites?.some(fav => (fav._id || fav) === featuredRecipe._id) ? "❤️" : "🤍"}
                         </button>
                         <button 
                           className="btn-primary"
@@ -224,7 +246,7 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
                     <div style={{ fontSize: "13px", color: "var(--primary)", fontWeight: "700", marginBottom: "8px" }}>Discover more</div>
                     <h3 style={{ fontSize: "24px", fontWeight: "800", color: "var(--navy)" }}>More approved recipes from the chef community</h3>
                   </div>
-                  <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>{filteredRecipes.length} approved recipes available</div>
+                  <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>{filteredItems.length} approved recipes available</div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
                   {trendingRecipes.map(recipe => (
@@ -258,8 +280,8 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
   const renderFavorites = () => (
     <div className="scroll-container">
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "24px" }}>
-        {user.favorites && user.favorites.length > 0 ? (
-          user.favorites.map(recipe => (
+        {filteredItems && filteredItems.length > 0 ? (
+          filteredItems.map(recipe => (
             <div key={recipe._id} style={{ 
               background: "var(--white)", 
               borderRadius: "24px", 
@@ -324,9 +346,11 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
           ))
         ) : (
           <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)" }}>
-            <div style={{ fontSize: "48px", marginBottom: "16px" }}>❤️</div>
-            <h3 style={{ fontSize: "20px", fontWeight: "700" }}>Your favorite list is empty</h3>
-            <p style={{ color: "var(--text-muted)", marginTop: "8px" }}>Save recipes you love to see them here later!</p>
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>{searchQuery ? "🔍" : "❤️"}</div>
+            <h3 style={{ fontSize: "20px", fontWeight: "700" }}>{searchQuery ? "No matches found" : "Your favorite list is empty"}</h3>
+            <p style={{ color: "var(--text-muted)", marginTop: "8px" }}>
+              {searchQuery ? "Try searching for something else." : "Save recipes you love to see them here later!"}
+            </p>
           </div>
         )}
       </div>
@@ -336,8 +360,8 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
   const renderFollowing = () => (
     <div className="scroll-container">
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px" }}>
-        {user.following && user.following.length > 0 ? (
-          user.following.map(chef => (
+        {filteredItems && filteredItems.length > 0 ? (
+          filteredItems.map(chef => (
             <div key={chef._id} style={{ 
               background: "var(--white)", 
               padding: "24px", 
@@ -395,9 +419,11 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
           ))
         ) : (
           <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)" }}>
-            <div style={{ fontSize: "48px", marginBottom: "16px" }}>👥</div>
-            <h3 style={{ fontSize: "20px", fontWeight: "700" }}>You're not following anyone yet</h3>
-            <p style={{ color: "var(--text-muted)", marginTop: "8px" }}>Explore the feed to find chefs and follow them to see them here!</p>
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>{searchQuery ? "🔍" : "👥"}</div>
+            <h3 style={{ fontSize: "20px", fontWeight: "700" }}>{searchQuery ? "No matches found" : "You're not following anyone yet"}</h3>
+            <p style={{ color: "var(--text-muted)", marginTop: "8px" }}>
+              {searchQuery ? "Try searching for another chef." : "Explore the feed to find chefs and follow them to see them here!"}
+            </p>
           </div>
         )}
       </div>
