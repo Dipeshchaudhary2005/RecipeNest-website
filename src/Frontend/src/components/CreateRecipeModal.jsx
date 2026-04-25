@@ -6,23 +6,45 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh, editReci
   const [error, setError] = useState(null);
   
   const [formData, setFormData] = useState({
-    title: editRecipe?.title || "",
-    description: editRecipe?.description || "",
-    prepTime: editRecipe?.prepTime || "",
-    cookTime: editRecipe?.cookTime || "",
-    servings: editRecipe?.servings || 1,
-    difficulty: editRecipe?.difficulty || "Easy",
-    cuisine: editRecipe?.cuisine || "",
-    tag: editRecipe?.tag || "",
-    tip: editRecipe?.tip || "",
+    title: "",
+    description: "",
+    prepTime: "",
+    cookTime: "",
+    servings: 1,
+    difficulty: "Easy",
+    cuisine: "",
+    tag: "",
+    tip: "",
   });
   
   const UNITS = ["pcs", "cup", "tbsp", "tsp", "g", "kg", "ml", "l", "oz", "lb", "pinch", "to taste"];
   
-  const [ingredients, setIngredients] = useState(editRecipe?.ingredients?.length > 0 ? editRecipe.ingredients : [{ name: "", quantity: "", unit: "", note: "" }]);
-  const [steps, setSteps] = useState(editRecipe?.steps?.length > 0 ? editRecipe.steps.map(s => ({ ...s, preview: s.image ? s.image : null })) : [{ title: "", body: "", order: 1, hasImage: false, image: null, preview: null }]);
+  const [ingredients, setIngredients] = useState([{ name: "", quantity: "", unit: "", note: "" }]);
+  const [steps, setSteps] = useState([{ title: "", body: "", order: 1, hasImage: false, image: null, preview: null }]);
   const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(editRecipe?.image || null);
+  const [imagePreview, setImagePreview] = useState(null);
+
+  // Sync props to state when modal opens or editRecipe changes
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        title: editRecipe?.title || "",
+        description: editRecipe?.description || "",
+        prepTime: editRecipe?.prepTime || "",
+        cookTime: editRecipe?.cookTime || "",
+        servings: editRecipe?.servings || 1,
+        difficulty: editRecipe?.difficulty || "Easy",
+        cuisine: editRecipe?.cuisine || "",
+        tag: editRecipe?.tag || "",
+        tip: editRecipe?.tip || "",
+      });
+      setIngredients(editRecipe?.ingredients?.length > 0 ? [...editRecipe.ingredients] : [{ name: "", quantity: "", unit: "", note: "" }]);
+      setSteps(editRecipe?.steps?.length > 0 ? editRecipe.steps.map(s => ({ ...s, preview: s.image ? s.image : null })) : [{ title: "", body: "", order: 1, hasImage: false, image: null, preview: null }]);
+      setImagePreview(editRecipe?.image || null);
+      setImage(null);
+      setError(null);
+    }
+  }, [isOpen, editRecipe]);
 
   if (!isOpen) return null;
 
@@ -124,10 +146,14 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh, editReci
         : await recipeAPI.create(data);
         
       if (response.data.success) {
-        const createdRecipe = response.data.data;
+        const result = response.data.data;
 
-        // Notify other pages that a new recipe is available
-        window.dispatchEvent(new CustomEvent("recipe-created", { detail: createdRecipe }));
+        // Notify other pages that a recipe changed
+        if (editRecipe) {
+          window.dispatchEvent(new CustomEvent("recipe-updated", { detail: result }));
+        } else {
+          window.dispatchEvent(new CustomEvent("recipe-created", { detail: result }));
+        }
 
         onRefresh();
         onClose();
@@ -251,6 +277,18 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh, editReci
                 />
               </div>
 
+              <div className="form-group">
+                <label style={{ display: "block", fontSize: "14px", fontWeight: "700", marginBottom: "8px", color: "var(--text-main)" }}>Chef's Tip (Optional)</label>
+                <input 
+                  type="text" 
+                  name="tip" 
+                  placeholder="e.g. Let the dough rest for 24 hours..."
+                  value={formData.tip}
+                  onChange={handleInputChange}
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid var(--border-light)", background: "var(--bg)", outline: "none", fontSize: "15px" }}
+                />
+              </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div className="form-group">
                   <label style={{ display: "block", fontSize: "14px", fontWeight: "700", marginBottom: "8px" }}>Prep Time</label>
@@ -292,20 +330,31 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh, editReci
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div className="form-group">
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: "700", marginBottom: "8px" }}>Difficulty</label>
-                  <select name="difficulty" value={formData.difficulty} onChange={handleInputChange} style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid var(--border-light)", background: "var(--bg)" }}>
-                    <option>Easy</option>
-                    <option>Medium</option>
-                    <option>Hard</option>
-                  </select>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div className="form-group">
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: "700", marginBottom: "8px" }}>Difficulty</label>
+                    <select name="difficulty" value={formData.difficulty} onChange={handleInputChange} style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid var(--border-light)", background: "var(--bg)" }}>
+                      <option>Easy</option>
+                      <option>Medium</option>
+                      <option>Hard</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: "700", marginBottom: "8px" }}>Servings</label>
+                    <input type="number" name="servings" min="1" value={formData.servings} onChange={handleInputChange} style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid var(--border-light)", background: "var(--bg)" }} />
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label style={{ display: "block", fontSize: "14px", fontWeight: "700", marginBottom: "8px" }}>Servings</label>
-                  <input type="number" name="servings" min="1" value={formData.servings} onChange={handleInputChange} style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid var(--border-light)", background: "var(--bg)" }} />
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div className="form-group">
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: "700", marginBottom: "8px" }}>Cuisine</label>
+                    <input type="text" name="cuisine" placeholder="e.g. Italian" value={formData.cuisine} onChange={handleInputChange} style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid var(--border-light)", background: "var(--bg)" }} />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ display: "block", fontSize: "14px", fontWeight: "700", marginBottom: "8px" }}>Category (Tag)</label>
+                    <input type="text" name="tag" placeholder="e.g. Pasta" value={formData.tag} onChange={handleInputChange} style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid var(--border-light)", background: "var(--bg)" }} />
+                  </div>
                 </div>
-              </div>
             </div>
           </div>
 

@@ -28,6 +28,14 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, setSelec
     if (activeNav === "feed") {
       fetchFeed();
     }
+
+    const onRecipeUpdated = (event) => {
+      const updatedRecipe = event.detail;
+      setRecipes(prev => prev.map(r => r._id === updatedRecipe._id ? updatedRecipe : r));
+    };
+
+    window.addEventListener("recipe-updated", onRecipeUpdated);
+    return () => window.removeEventListener("recipe-updated", onRecipeUpdated);
   }, [activeNav]);
 
   useEffect(() => {

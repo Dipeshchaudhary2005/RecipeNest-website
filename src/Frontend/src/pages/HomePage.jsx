@@ -14,8 +14,17 @@ export default function HomePage({ setPage, setSelectedRecipe, setSelectedChefId
       setRecipes(prev => [newRecipe, ...prev]);
     };
 
+    const onRecipeUpdated = (event) => {
+      const updatedRecipe = event.detail;
+      setRecipes(prev => prev.map(r => r._id === updatedRecipe._id ? updatedRecipe : r));
+    };
+
     window.addEventListener("recipe-created", onRecipeCreated);
-    return () => window.removeEventListener("recipe-created", onRecipeCreated);
+    window.addEventListener("recipe-updated", onRecipeUpdated);
+    return () => {
+      window.removeEventListener("recipe-created", onRecipeCreated);
+      window.removeEventListener("recipe-updated", onRecipeUpdated);
+    };
   }, []);
 
   const fetchRecipes = async () => {

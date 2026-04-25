@@ -60,6 +60,17 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, setSelec
       fetchFollowers();
       fetchNotifications();
     }
+
+    const onRecipeUpdated = (event) => {
+      const updatedRecipe = event.detail;
+      // Update Feed recipes if present
+      setFeedRecipes(prev => prev.map(r => r._id === updatedRecipe._id ? updatedRecipe : r));
+      // Update My Creations recipes if present
+      setRecipes(prev => prev.map(r => r._id === updatedRecipe._id ? updatedRecipe : r));
+    };
+
+    window.addEventListener("recipe-updated", onRecipeUpdated);
+    return () => window.removeEventListener("recipe-updated", onRecipeUpdated);
   }, [activeNav]);
 
   const fetchMyRecipes = async () => {

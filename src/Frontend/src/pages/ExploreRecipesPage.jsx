@@ -12,6 +12,36 @@ export default function ExploreRecipesPage({ setPage, setSelectedRecipe, setSele
 
   useEffect(() => {
     fetchRecipes();
+
+    const onRecipeCreated = (event) => {
+      const newRecipe = event.detail;
+      if (newRecipe.status === "Live") {
+        setRecipes(prev => [newRecipe, ...prev]);
+      }
+    };
+
+    const onRecipeUpdated = (event) => {
+      const updatedRecipe = event.detail;
+      setRecipes(prev => {
+        const exists = prev.some(r => r._id === updatedRecipe._id);
+        if (exists) {
+          if (updatedRecipe.status !== "Live") {
+            return prev.filter(r => r._id !== updatedRecipe._id);
+          }
+          return prev.map(r => r._id === updatedRecipe._id ? updatedRecipe : r);
+        } else if (updatedRecipe.status === "Live") {
+          return [updatedRecipe, ...prev];
+        }
+        return prev;
+      });
+    };
+
+    window.addEventListener("recipe-created", onRecipeCreated);
+    window.addEventListener("recipe-updated", onRecipeUpdated);
+    return () => {
+      window.removeEventListener("recipe-created", onRecipeCreated);
+      window.removeEventListener("recipe-updated", onRecipeUpdated);
+    };
   }, []);
 
   const fetchRecipes = async () => {

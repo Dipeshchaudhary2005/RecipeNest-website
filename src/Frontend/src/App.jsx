@@ -57,6 +57,19 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
+  // Listen for recipe updates to keep selectedRecipe in sync
+  useEffect(() => {
+    const onRecipeUpdated = (event) => {
+      const updatedRecipe = event.detail;
+      if (selectedRecipe && selectedRecipe._id === updatedRecipe._id) {
+        setSelectedRecipe(updatedRecipe);
+      }
+    };
+
+    window.addEventListener("recipe-updated", onRecipeUpdated);
+    return () => window.removeEventListener("recipe-updated", onRecipeUpdated);
+  }, [selectedRecipe]);
+
   // Handle URL query parameters for direct links (e.g. from reset email)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
