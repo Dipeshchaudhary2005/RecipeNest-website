@@ -114,7 +114,7 @@ const createMulterConfig = (uploadDir, maxFileSize = 5 * 1024 * 1024) => {
     fileFilter: fileFilter,
     limits: {
       fileSize: maxFileSize,
-      files: 1,
+      files: 20, // Increased to allow cover + up to 10 steps + buffer
     },
   });
 };

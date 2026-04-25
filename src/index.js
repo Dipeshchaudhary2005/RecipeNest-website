@@ -37,8 +37,38 @@ app.use('/api/users', userRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/admin', adminRoutes);
 
+// 404 handler
 app.use((req, res, next) => {
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error("Global Error Handler:", err);
+
+  // Multer errors
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ success: false, message: 'File is too large (max 5MB)' });
+  }
+  if (err.code === 'LIMIT_FILE_COUNT') {
+    return res.status(400).json({ success: false, message: 'Too many files uploaded' });
+  }
+  if (err.code === 'LIMIT_FILE_TYPE') {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+  if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+    return res.status(400).json({ success: false, message: 'Unexpected file field' });
+  }
+
+  const status = err.status || 500;
+  const message = err.message || 'Internal Server Error';
+
+  res.status(status).json({
+    success: false,
+    message: message,
+    errors: err.errors || undefined,
+    stack: NODE_ENV === 'development' ? err.stack : undefined
+  });
 });
 
 module.exports = app;

@@ -175,13 +175,23 @@ const createRecipe = async (req, res) => {
     
     // Parse JSON fields
     if (typeof rawData.ingredients === "string") {
-      try { rawData.ingredients = JSON.parse(rawData.ingredients); } catch (e) { /* ignore */ }
+      try { 
+        rawData.ingredients = JSON.parse(rawData.ingredients); 
+      } catch (e) { 
+        console.error("Failed to parse ingredients JSON:", e);
+        return res.status(400).json({ success: false, message: "Invalid ingredients format" });
+      }
     }
     if (typeof rawData.steps === "string") {
-      try { rawData.steps = JSON.parse(rawData.steps); } catch (e) { /* ignore */ }
+      try { 
+        rawData.steps = JSON.parse(rawData.steps); 
+      } catch (e) { 
+        console.error("Failed to parse steps JSON:", e);
+        return res.status(400).json({ success: false, message: "Invalid cooking steps format" });
+      }
     }
 
-    // 2. Validate input data
+    // 2. Validate input data (Controller-level validation)
     const validationErrors = validateRecipeData(rawData);
     if (validationErrors.length > 0) {
       return res.status(400).json({
@@ -199,9 +209,20 @@ const createRecipe = async (req, res) => {
     });
   } catch (error) {
     console.error("Create recipe error:", error);
+    
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: "Database validation failed",
+        errors: messages
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: "Failed to create recipe",
+      message: error.message || "Failed to create recipe",
       error: NODE_ENV === "development" ? error.message : undefined,
     });
   }
@@ -222,12 +243,22 @@ const updateRecipe = async (req, res) => {
     if (rawData.rating) rawData.rating = Number(rawData.rating);
     if (rawData.reviews) rawData.reviews = Number(rawData.reviews);
     
-    // Parse JSON fields (optional because the frontend should send them as part of the body, but sometimes multipart sends as JSON string)
+    // Parse JSON fields
     if (typeof rawData.ingredients === "string") {
-      try { rawData.ingredients = JSON.parse(rawData.ingredients); } catch (e) { /* ignore */ }
+      try { 
+        rawData.ingredients = JSON.parse(rawData.ingredients); 
+      } catch (e) { 
+        console.error("Failed to parse ingredients JSON:", e);
+        return res.status(400).json({ success: false, message: "Invalid ingredients format" });
+      }
     }
     if (typeof rawData.steps === "string") {
-      try { rawData.steps = JSON.parse(rawData.steps); } catch (e) { /* ignore */ }
+      try { 
+        rawData.steps = JSON.parse(rawData.steps); 
+      } catch (e) { 
+        console.error("Failed to parse steps JSON:", e);
+        return res.status(400).json({ success: false, message: "Invalid cooking steps format" });
+      }
     }
 
     // 2. Validate input data
@@ -254,9 +285,20 @@ const updateRecipe = async (req, res) => {
     });
   } catch (error) {
     console.error("Update recipe error:", error);
+    
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: "Database validation failed",
+        errors: messages
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: "Failed to update recipe",
+      message: error.message || "Failed to update recipe",
       error: NODE_ENV === "development" ? error.message : undefined,
     });
   }
