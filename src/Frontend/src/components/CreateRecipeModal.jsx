@@ -17,7 +17,9 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh, editReci
     tip: editRecipe?.tip || "",
   });
   
-  const [ingredients, setIngredients] = useState(editRecipe?.ingredients?.length > 0 ? editRecipe.ingredients : [{ name: "", note: "" }]);
+  const UNITS = ["pcs", "cup", "tbsp", "tsp", "g", "kg", "ml", "l", "oz", "lb", "pinch", "to taste"];
+  
+  const [ingredients, setIngredients] = useState(editRecipe?.ingredients?.length > 0 ? editRecipe.ingredients : [{ name: "", quantity: "", unit: "", note: "" }]);
   const [steps, setSteps] = useState(editRecipe?.steps?.length > 0 ? editRecipe.steps.map(s => ({ ...s, preview: s.image ? s.image : null })) : [{ title: "", body: "", order: 1, hasImage: false, image: null, preview: null }]);
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(editRecipe?.image || null);
@@ -39,7 +41,7 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh, editReci
     }
   };
 
-  const addIngredient = () => setIngredients([...ingredients, { name: "", note: "" }]);
+  const addIngredient = () => setIngredients([...ingredients, { name: "", quantity: "", unit: "", note: "" }]);
   const removeIngredient = (index) => setIngredients(ingredients.filter((_, i) => i !== index));
   const updateIngredient = (index, field, value) => {
     const newIngredients = [...ingredients];
@@ -317,10 +319,34 @@ export default function CreateRecipeModal({ isOpen, onClose, onRefresh, editReci
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {ingredients.map((ing, idx) => (
-                <div key={idx} style={{ display: "flex", gap: "12px" }}>
-                  <input placeholder="Item name" value={ing.name} onChange={(e) => updateIngredient(idx, "name", e.target.value)} style={{ flex: 1, padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--border-light)", background: "var(--bg)" }} />
-                  <input placeholder="Note (qty, etc)" value={ing.note} onChange={(e) => updateIngredient(idx, "note", e.target.value)} style={{ flex: 1, padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--border-light)", background: "var(--bg)" }} />
-                  <button type="button" onClick={() => removeIngredient(idx)} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "18px" }}>×</button>
+                <div key={idx} style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <input 
+                    placeholder="Name" 
+                    value={ing.name} 
+                    onChange={(e) => updateIngredient(idx, "name", e.target.value)} 
+                    style={{ flex: 2, padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--border-light)", background: "var(--bg)" }} 
+                  />
+                  <input 
+                    placeholder="Qty" 
+                    value={ing.quantity} 
+                    onChange={(e) => updateIngredient(idx, "quantity", e.target.value)} 
+                    style={{ width: "70px", padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--border-light)", background: "var(--bg)" }} 
+                  />
+                  <select 
+                    value={ing.unit} 
+                    onChange={(e) => updateIngredient(idx, "unit", e.target.value)} 
+                    style={{ width: "100px", padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--border-light)", background: "var(--bg)" }}
+                  >
+                    <option value="">Unit</option>
+                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <input 
+                    placeholder="Note" 
+                    value={ing.note} 
+                    onChange={(e) => updateIngredient(idx, "note", e.target.value)} 
+                    style={{ flex: 1.5, padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--border-light)", background: "var(--bg)" }} 
+                  />
+                  <button type="button" onClick={() => removeIngredient(idx)} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "18px", cursor: "pointer" }}>×</button>
                 </div>
               ))}
             </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { recipeAPI } from "../services/api";
 import RecipeCard from "../components/RecipeCard";
 
-export default function ExploreRecipesPage({ setPage, setSelectedRecipe, user, setUser }) {
+export default function ExploreRecipesPage({ setPage, setSelectedRecipe, setSelectedChefId, user, setUser }) {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -128,6 +128,7 @@ export default function ExploreRecipesPage({ setPage, setSelectedRecipe, user, s
                 user={user}
                 setUser={setUser}
                 setPage={setPage}
+                setSelectedChefId={setSelectedChefId}
                 onClick={() => {
                   setSelectedRecipe(recipe);
                   setPage("recipe-detail");

@@ -146,7 +146,7 @@ const cardStyles = `
   }
 `;
 
-export default function RecipeCard({ recipe, onClick, user, setUser, setPage, variant = "grid" }) {
+export default function RecipeCard({ recipe, onClick, user, setUser, setPage, setSelectedChefId, variant = "grid" }) {
   const [loading, setLoading] = useState({ follow: false, favorite: false });
 
   const isFavorited = user?.favorites?.some(f => (f._id || f) === recipe._id);
@@ -180,8 +180,18 @@ export default function RecipeCard({ recipe, onClick, user, setUser, setPage, va
     return (
       <div className="feed-post card-hover">
         <div className="feed-post-header">
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div className="sidebar-avatar" style={{ width: "42px", height: "42px", fontSize: "14px", fontWeight: "700", background: "var(--primary)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "12px", overflow: "hidden" }}>
+          <div 
+            style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const cid = recipe.chef?._id || recipe.chef;
+              if (cid) {
+                setSelectedChefId(cid);
+                setPage("chef-profile");
+              }
+            }}
+          >
+            <div className="sidebar-avatar" style={{ width: "42px", height: "42px", fontSize: "14px", fontWeight: "700", background: "var(--primary)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
               {recipe.chef?.avatar ? (
                 <img src={getImageUrl(recipe.chef.avatar)} alt="Chef" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
@@ -189,17 +199,38 @@ export default function RecipeCard({ recipe, onClick, user, setUser, setPage, va
               )}
             </div>
             <div>
-              <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-main)", lineHeight: "1.2" }}>
+              <div style={{ fontSize: "15px", fontWeight: "800", color: "var(--navy)", lineHeight: "1.2" }}>
                 {recipe.chef?.name || recipe.chef || "Chef"}
               </div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+              <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "500" }}>
                 {recipe.createdAt ? new Date(recipe.createdAt).toLocaleDateString() : "Just now"} • 🌎
               </div>
             </div>
           </div>
-          <button style={{ background: "none", border: "none", fontSize: "18px", color: "var(--text-muted)", cursor: "pointer", padding: "8px", borderRadius: "50%" }}>
-            <span style={{ transform: "rotate(90deg)", display: "inline-block" }}>•••</span>
-          </button>
+          
+          <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+             {user && recipe.chef && user._id !== (recipe.chef._id || recipe.chef) && (
+               <button 
+                 onClick={handleFollow}
+                 style={{ 
+                   background: isFollowing ? "var(--bg)" : "rgba(255,49,49,0.08)", 
+                   border: "none", 
+                   color: "var(--primary)", 
+                   fontSize: "12px", 
+                   fontWeight: "800", 
+                   padding: "6px 16px", 
+                   borderRadius: "99px",
+                   cursor: "pointer",
+                   transition: "all 0.3s"
+                 }}
+               >
+                 {isFollowing ? "Following" : "+ Follow"}
+               </button>
+             )}
+            <button style={{ background: "none", border: "none", fontSize: "18px", color: "var(--text-muted)", cursor: "pointer", padding: "8px", borderRadius: "50%" }}>
+              <span style={{ transform: "rotate(90deg)", display: "inline-block" }}>•••</span>
+            </button>
+          </div>
         </div>
 
         <div className="feed-post-body">
@@ -224,7 +255,7 @@ export default function RecipeCard({ recipe, onClick, user, setUser, setPage, va
           </p>
         </div>
 
-        <div className="feed-post-image-container" style={{ position: "relative", overflow: "hidden", background: "#f8f9fa" }}>
+        <div className="feed-post-image-container" style={{ position: "relative", overflow: "hidden", background: "#f8f9fa", borderRadius: "24px", margin: "0 20px" }}>
           <img 
             className="feed-post-image" 
             src={getImageUrl(recipe.image)} 
@@ -232,7 +263,11 @@ export default function RecipeCard({ recipe, onClick, user, setUser, setPage, va
             onClick={() => onClick && onClick(recipe)}
             style={{ 
               transition: "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-              display: "block"
+              display: "block",
+              width: "100%",
+              height: "auto",
+              maxHeight: "500px",
+              objectFit: "cover"
             }}
             onMouseEnter={e => e.currentTarget.style.transform = "scale(1.02)"}
             onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
@@ -241,16 +276,17 @@ export default function RecipeCard({ recipe, onClick, user, setUser, setPage, va
               e.currentTarget.src = getImageUrl(null);
             }}
           />
-          <div style={{ position: "absolute", bottom: "16px", left: "16px", display: "flex", gap: "8px" }}>
-            <span className="badge" style={{ background: "rgba(255,255,255,0.9)", color: "var(--navy)", backdropFilter: "blur(4px)", border: "none" }}>{recipe.difficulty}</span>
-            <span className="badge" style={{ background: "rgba(255,49,49,0.9)", color: "#fff", backdropFilter: "blur(4px)", border: "none" }}>{recipe.tag || "New"}</span>
+          <div style={{ position: "absolute", bottom: "20px", left: "20px", display: "flex", gap: "10px" }}>
+            <span className="badge" style={{ background: "rgba(255,255,255,0.95)", color: "var(--navy)", backdropFilter: "blur(10px)", border: "none", fontWeight: "800", padding: "8px 16px" }}>{recipe.difficulty}</span>
+            <span className="badge" style={{ background: "rgba(255,49,49,0.95)", color: "#fff", backdropFilter: "blur(10px)", border: "none", fontWeight: "800", padding: "8px 16px" }}>{recipe.tag || "New"}</span>
           </div>
           <button 
             onClick={handleFavorite}
             style={{
-              position: "absolute", top: "16px", right: "16px", width: "40px", height: "40px", borderRadius: "12px",
-              background: "rgba(255,255,255,0.9)", border: "none", fontSize: "18px", display: "flex", alignItems: "center",
-              justifyContent: "center", cursor: "pointer", transition: "var(--transition)", boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+              position: "absolute", top: "20px", right: "20px", width: "44px", height: "44px", borderRadius: "14px",
+              background: "rgba(255,255,255,0.95)", border: "none", fontSize: "20px", display: "flex", alignItems: "center",
+              justifyContent: "center", cursor: "pointer", transition: "var(--transition)", boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
+              backdropFilter: "blur(10px)"
             }}
           >
             {isFavorited ? "❤️" : "🤍"}
@@ -310,7 +346,18 @@ export default function RecipeCard({ recipe, onClick, user, setUser, setPage, va
           </div>
           <div className="rn-card-divider" />
           <div className="rn-chef-row">
-            <div className="rn-chef-info">
+            <div 
+              className="rn-chef-info" 
+              style={{ cursor: "pointer" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                const cid = recipe.chef?._id || recipe.chef;
+                if (cid) {
+                  setSelectedChefId(cid);
+                  setPage("chef-profile");
+                }
+              }}
+            >
               <div className="rn-chef-avatar">{getInitials(recipe.chef?.name || recipe.chef || "Chef")}</div>
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <span className="rn-chef-name">{recipe.chef?.name || recipe.chef || "Chef"}</span>

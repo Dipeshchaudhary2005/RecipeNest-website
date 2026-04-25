@@ -14,7 +14,7 @@ const NAV = [
 
 const CATEGORIES = ["All", "Breakfast", "Lunch", "Dinner", "Dessert", "Vegetarian", "Seafood"];
 
-export default function UserDashboardPage({ setPage, setSelectedRecipe, user, setUser, onLogout }) {
+export default function UserDashboardPage({ setPage, setSelectedRecipe, setSelectedChefId, user, setUser, onLogout }) {
   const [activeNav, setActiveNav] = useState("feed");
   const [activeCategory, setActiveCategory] = useState("All");
   const [recipes, setRecipes] = useState([]);
@@ -256,6 +256,7 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, user, se
                       user={user}
                       setUser={setUser}
                       setPage={setPage}
+                      setSelectedChefId={setSelectedChefId}
                       onClick={(r) => {
                         setSelectedRecipe(r);
                         setPage("recipe-detail");

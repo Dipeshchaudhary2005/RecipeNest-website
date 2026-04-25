@@ -14,7 +14,7 @@ const getInitials = (chef) => {
   return initials || "CH";
 };
 
-export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUser }) {
+export default function RecipeDetailPage({ recipe, setPage, setSelectedChefId, onBack, user, setUser }) {
   const [checkedIngredients, setCheckedIngredients] = useState({});
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
@@ -102,7 +102,16 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
             </h1>
 
             <div style={{ display: "flex", alignItems: "center", gap: "24px", marginBottom: "40px", flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div 
+                style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}
+                onClick={() => {
+                  const cid = liveRecipe.chef?._id || liveRecipe.chef;
+                  if (cid) {
+                    setSelectedChefId(typeof cid === 'object' ? cid._id : cid);
+                    setPage("chef-profile");
+                  }
+                }}
+              >
                 <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "linear-gradient(135deg, var(--primary), #c0392b)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "14px", fontWeight: "800" }}>
                   {getInitials(recipe.chef)}
                 </div>
@@ -237,9 +246,9 @@ export default function RecipeDetailPage({ recipe, setPage, onBack, user, setUse
                       </div>
                       <div style={{ flex: 1, opacity: checkedIngredients[i] ? 0.5 : 1 }}>
                         <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-main)", textDecoration: checkedIngredients[i] ? "line-through" : "none" }}>
-                          {ing.name}
+                          {ing.quantity} {ing.unit} {ing.name}
                         </div>
-                        <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>{ing.note}</div>
+                        {ing.note && <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>{ing.note}</div>}
                       </div>
                     </div>
                   ))}

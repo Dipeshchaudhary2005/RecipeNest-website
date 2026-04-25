@@ -22,7 +22,7 @@ const STATUS_BADGE = {
   Rejected: "badge-rejected",
 };
 
-export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, setUser, onLogout }) {
+export default function ChefDashboardPage({ setPage, setSelectedRecipe, setSelectedChefId, user, setUser, onLogout }) {
   const [activeNav, setActiveNav] = useState("feed");
   const [activeTab, setActiveTab] = useState("All Recipes");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -319,6 +319,10 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, user, se
                     key={recipe._id} 
                     recipe={recipe} 
                     variant="feed"
+                    user={user}
+                    setUser={setUser}
+                    setPage={setPage}
+                    setSelectedChefId={setSelectedChefId}
                     onClick={(r) => {
                       setSelectedRecipe(r);
                       setPage("recipe-detail");

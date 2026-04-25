@@ -14,6 +14,16 @@ const IngredientSchema = new mongoose.Schema({
     required: [true, "Ingredient name is required"],
     trim: true,
   },
+  quantity: {
+    type: String, // Using String to allow fractions like "1/2" or numbers
+    trim: true,
+    default: "",
+  },
+  unit: {
+    type: String,
+    trim: true,
+    default: "",
+  },
   note: {
     type: String,
     trim: true,

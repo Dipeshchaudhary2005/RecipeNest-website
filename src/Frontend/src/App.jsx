@@ -17,6 +17,7 @@ import UserDashboardPage from "./pages/user/UserDashboardPage";
 
 // Chef
 import ChefDashboardPage from "./pages/chef/ChefDashboardPage";
+import ChefProfilePage from "./pages/ChefProfilePage";
 
 // Admin
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
@@ -47,6 +48,7 @@ export default function App() {
   const [page, setPage] = useState("home");
   const [history, setHistory] = useState([]);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [selectedChefId, setSelectedChefId] = useState(null);
   const [search, setSearch] = useState("");
 
   // Sync theme with document and localStorage
@@ -118,9 +120,9 @@ export default function App() {
     if (user) {
       switch (user.role) {
         case "admin": return <AdminDashboardPage setPage={navigateTo} user={user} setUser={setUser} onLogout={handleLogout} />;
-        case "chef": return <ChefDashboardPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} user={user} setUser={setUser} onLogout={handleLogout} />;
-        case "user": return <UserDashboardPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} user={user} setUser={setUser} onLogout={handleLogout} />;
-        default: return <HomePage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} search={search} setSearch={setSearch} />;
+        case "chef": return <ChefDashboardPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} setSelectedChefId={setSelectedChefId} user={user} setUser={setUser} onLogout={handleLogout} />;
+        case "user": return <UserDashboardPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} setSelectedChefId={setSelectedChefId} user={user} setUser={setUser} onLogout={handleLogout} />;
+        default: return <HomePage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} setSelectedChefId={setSelectedChefId} search={search} setSearch={setSearch} />;
       }
     }
     
@@ -147,15 +149,25 @@ export default function App() {
 
       {/* Page Routing */}
       {page === "home" && (
-        <HomePage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} search={search} setSearch={setSearch} user={user} />
+        <HomePage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} setSelectedChefId={setSelectedChefId} search={search} setSearch={setSearch} user={user} />
       )}
 
       {page === "recipe-detail" && (
-        <RecipeDetailPage recipe={selectedRecipe} setPage={navigateTo} onBack={handleBack} user={user} setUser={setUser} />
+        <RecipeDetailPage recipe={selectedRecipe} setPage={navigateTo} setSelectedChefId={setSelectedChefId} onBack={handleBack} user={user} setUser={setUser} />
       )}
 
       {page === "explore-recipes" && (
-        <ExploreRecipesPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} user={user} setUser={setUser} />
+        <ExploreRecipesPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} setSelectedChefId={setSelectedChefId} user={user} setUser={setUser} />
+      )}
+      
+      {page === "chef-profile" && (
+        <ChefProfilePage 
+          chefId={selectedChefId} 
+          setPage={navigateTo} 
+          setSelectedRecipe={setSelectedRecipe} 
+          user={user} 
+          setUser={setUser} 
+        />
       )}
 
       {page.includes("-dashboard") && renderDashboard()}
