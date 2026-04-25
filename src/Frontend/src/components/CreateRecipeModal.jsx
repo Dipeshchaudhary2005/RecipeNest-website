@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { recipeAPI } from "../services/api";
 
 export default function CreateRecipeModal({ isOpen, onClose, onRefresh, editRecipe = null }) {
