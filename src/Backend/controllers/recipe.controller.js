@@ -310,7 +310,7 @@ const updateRecipe = async (req, res) => {
  */
 const deleteRecipe = async (req, res) => {
   try {
-    const recipe = await recipeService.deleteRecipe(req.params.id, req.user._id);
+    const recipe = await recipeService.deleteRecipe(req.params.id, req.user);
     if (!recipe) {
       return res.status(404).json({
         success: false,
@@ -323,9 +323,9 @@ const deleteRecipe = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete recipe error:", error);
-    res.status(500).json({
+    res.status(error.message.includes("Unauthorized") ? 403 : 500).json({
       success: false,
-      message: "Failed to delete recipe",
+      message: error.message || "Failed to delete recipe",
       error: NODE_ENV === "development" ? error.message : undefined,
     });
   }

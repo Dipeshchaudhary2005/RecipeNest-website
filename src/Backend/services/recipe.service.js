@@ -198,15 +198,19 @@ const updateRecipe = async (id, updateData, files, user) => {
  * @param {String} userId - User ID (for authorization)
  * @returns {Object} Deleted recipe
  */
-const deleteRecipe = async (id, userId) => {
+const deleteRecipe = async (id, user) => {
   try {
-    // Check if recipe exists and user is authorized
+    // Check if recipe exists
     const recipe = await Recipe.findById(id);
     if (!recipe) {
       return null;
     }
 
-    if (recipe.chef.toString() !== userId) {
+    // Check authorization: Owner or Admin
+    const userId = user?._id?.toString?.() || user?._id || user;
+    const isAdmin = user?.role === "admin";
+    
+    if (!isAdmin && recipe.chef.toString() !== userId) {
       throw new Error("Unauthorized to delete this recipe");
     }
 
@@ -226,7 +230,7 @@ const deleteRecipe = async (id, userId) => {
     return recipe;
   } catch (error) {
     console.error("Delete recipe error:", error);
-    throw new Error("Failed to delete recipe");
+    throw error; // Re-throw original error (e.g., "Unauthorized...")
   }
 };
 
