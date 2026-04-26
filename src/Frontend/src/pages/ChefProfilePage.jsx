@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { recipeAPI, userAPI, getImageUrl } from "../services/api";
 import RecipeCard from "../components/RecipeCard";
 
@@ -12,7 +12,7 @@ export default function ChefProfilePage({ chefId, setPage, setSelectedRecipe, us
 
   useEffect(() => {
     fetchChefData();
-  }, [chefId]);
+  }, [fetchChefData]);
 
   useEffect(() => {
     if (user && chef) {
@@ -20,7 +20,7 @@ export default function ChefProfilePage({ chefId, setPage, setSelectedRecipe, us
     }
   }, [user, chef]);
 
-  const fetchChefData = async () => {
+  const fetchChefData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -44,7 +44,7 @@ export default function ChefProfilePage({ chefId, setPage, setSelectedRecipe, us
     } finally {
       setLoading(false);
     }
-  };
+  }, [chefId]);
 
   const handleFollow = async () => {
     if (!user) {

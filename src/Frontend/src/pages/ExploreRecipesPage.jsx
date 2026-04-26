@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { recipeAPI } from "../services/api";
 import RecipeCard from "../components/RecipeCard";
 
@@ -42,9 +42,9 @@ export default function ExploreRecipesPage({ setPage, setSelectedRecipe, setSele
       window.removeEventListener("recipe-created", onRecipeCreated);
       window.removeEventListener("recipe-updated", onRecipeUpdated);
     };
-  }, []);
+  }, [fetchRecipes]);
 
-  const fetchRecipes = async () => {
+  const fetchRecipes = useCallback(async () => {
     try {
       setLoading(true);
       const response = await recipeAPI.getAll();
@@ -60,7 +60,7 @@ export default function ExploreRecipesPage({ setPage, setSelectedRecipe, setSele
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const filtered = recipes.filter(r => {
     const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) || 
