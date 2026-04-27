@@ -31,6 +31,15 @@ export default function ProfileUpdateModal({ isOpen, onClose, user, onUpdate }) 
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Phone number specific handling
+    if (name === "phone") {
+      // Only allow numbers and max 10 digits
+      const cleaned = value.replace(/\D/g, "").slice(0, 10);
+      setFormData(prev => ({ ...prev, [name]: cleaned }));
+      return;
+    }
+    
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -46,6 +55,13 @@ export default function ProfileUpdateModal({ isOpen, onClose, user, onUpdate }) 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Phone validation: exactly 10 digits if provided
+    if (formData.phone && formData.phone.length !== 10) {
+      setError("Phone number must be exactly 10 digits.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(false);
@@ -201,9 +217,13 @@ export default function ProfileUpdateModal({ isOpen, onClose, user, onUpdate }) 
                 name="phone" 
                 value={formData.phone}
                 onChange={handleInputChange}
-                placeholder="+1 (555) 000-0000"
+                placeholder="10-digit number"
+                maxLength="10"
                 style={{ width: "100%", padding: "12px 16px", borderRadius: "14px", border: "1px solid var(--border-light)", background: "var(--bg)", outline: "none", fontSize: "15px" }}
               />
+              <small style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px", display: "block" }}>
+                {formData.phone.length}/10 digits
+              </small>
             </div>
 
             <div className="form-group">

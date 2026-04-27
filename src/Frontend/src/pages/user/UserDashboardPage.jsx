@@ -92,8 +92,6 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, setSelec
   };
 
   const filteredItems = getFilteredItems();
-  const featuredRecipe = activeNav === "feed" ? filteredItems[0] : null;
-  const trendingRecipes = activeNav === "feed" ? filteredItems.slice(1) : filteredItems;
 
   const renderFeed = () => (
     <div className="scroll-container">
@@ -141,142 +139,24 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, setSelec
         />
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "24px" }}>
         {filteredItems.length > 0 ? (
-          <>
-            {featuredRecipe && (
-              <div style={{ background: "var(--white)", borderRadius: "32px", overflow: "hidden", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border-light)" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 1.4fr) 1fr", gap: "32px", minHeight: "420px" }}>
-                  <div style={{ position: "relative", minHeight: "420px" }}>
-                    <img
-                      src={getImageUrl(featuredRecipe.image)}
-                      alt={featuredRecipe.title}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                    <div style={{ position: "absolute", bottom: "24px", left: "24px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                      <span className="badge" style={{ background: "rgba(255,255,255,0.92)", color: "var(--navy)", border: "none" }}>{featuredRecipe.tag || "Chef Special"}</span>
-                      {featuredRecipe.status && (
-                        <span className="badge" style={{ background: "rgba(17, 24, 39, 0.85)", color: "#fff", border: "none" }}>Approved by Admin</span>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ padding: "40px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--primary)" }}>Chef Showcase</span>
-                        <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>{featuredRecipe.cuisine || "Contemporary"} • {featuredRecipe.time || "30m"}</span>
-                      </div>
-                      <h2 style={{ fontSize: "3rem", lineHeight: "1.05", marginBottom: "18px", color: "var(--navy)", fontFamily: "'Playfair Display', serif" }}>{featuredRecipe.title}</h2>
-                      <p style={{ fontSize: "1rem", color: "var(--text-main)", lineHeight: "1.8", maxWidth: "520px", marginBottom: "30px" }}>
-                        {featuredRecipe.description || "A delicious recipe from our chef community, curated and approved for your kitchen."}
-                      </p>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", marginBottom: "28px" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                          <span style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Servings</span>
-                          <strong style={{ fontSize: "18px", color: "var(--text-main)" }}>{featuredRecipe.servings || 1}</strong>
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                          <span style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Difficulty</span>
-                          <strong style={{ fontSize: "18px", color: "var(--text-main)" }}>{featuredRecipe.difficulty || "Medium"}</strong>
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                        <div style={{ width: "56px", height: "56px", borderRadius: "18px", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "20px", fontWeight: "700" }}>
-                          {featuredRecipe.chef?.name?.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase() || "CH"}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-main)" }}>{featuredRecipe.chef?.name || "Chef"}</div>
-                          <div style={{ fontSize: "13px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "8px" }}>
-                            Approved recipe
-                            {user && featuredRecipe.chef && user._id !== (featuredRecipe.chef._id || featuredRecipe.chef) && (
-                              <button 
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  const chefId = featuredRecipe.chef._id || featuredRecipe.chef;
-                                  const isFollowing = user.following?.some(f => (f._id || f) === chefId);
-                                  try {
-                                    const res = isFollowing ? await userAPI.unfollowChef(chefId) : await userAPI.followChef(chefId);
-                                    if (res.data.success) setUser(res.data.data.user);
-                                  } catch (err) { console.error(err); }
-                                }}
-                                style={{ 
-                                  background: "none", border: "none", color: "var(--primary)", 
-                                  fontSize: "12px", fontWeight: "800", cursor: "pointer", padding: "0" 
-                                }}
-                              >
-                                • {user.following?.some(f => (f._id || f) === (featuredRecipe.chef._id || featuredRecipe.chef)) ? "Following" : "Follow"}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <button 
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            try {
-                              const res = await recipeAPI.toggleFavorite(featuredRecipe._id);
-                              if (res.data.success) setUser(res.data.data.user);
-                            } catch (err) { console.error(err); }
-                          }}
-                          style={{
-                            width: "48px", height: "48px", borderRadius: "16px", border: "1px solid var(--border-light)",
-                            background: "var(--white)", color: user?.favorites?.some(fav => (fav._id || fav) === featuredRecipe._id) ? "var(--primary)" : "var(--text-muted)",
-                            fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
-                            transition: "var(--transition)", boxShadow: "var(--shadow-sm)"
-                          }}
-                        >
-                          {user?.favorites?.some(fav => (fav._id || fav) === featuredRecipe._id) ? "❤️" : "🤍"}
-                        </button>
-                        <button 
-                          className="btn-primary"
-                          style={{ padding: "14px 28px", borderRadius: "16px", fontSize: "14px" }}
-                          onClick={() => {
-                            setSelectedRecipe(featuredRecipe);
-                            setPage("recipe-detail");
-                          }}
-                        >
-                          View Recipe
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {trendingRecipes.length > 0 && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", gap: "16px" }}>
-                  <div>
-                    <div style={{ fontSize: "13px", color: "var(--primary)", fontWeight: "700", marginBottom: "8px" }}>Discover more</div>
-                    <h3 style={{ fontSize: "24px", fontWeight: "800", color: "var(--navy)" }}>More approved recipes from the chef community</h3>
-                  </div>
-                  <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>{filteredItems.length} approved recipes available</div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
-                  {trendingRecipes.map(recipe => (
-                    <RecipeCard 
-                      key={recipe._id} 
-                      recipe={recipe} 
-                      user={user}
-                      setUser={setUser}
-                      setPage={setPage}
-                      setSelectedChefId={setSelectedChefId}
-                      onClick={(r) => {
-                        setSelectedRecipe(r);
-                        setPage("recipe-detail");
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
+          filteredItems.map(recipe => (
+            <RecipeCard 
+              key={recipe._id} 
+              recipe={recipe} 
+              user={user}
+              setUser={setUser}
+              setPage={setPage}
+              setSelectedChefId={setSelectedChefId}
+              onClick={(r) => {
+                setSelectedRecipe(r);
+                setPage("recipe-detail");
+              }}
+            />
+          ))
         ) : (
-          <div style={{ textAlign: "center", padding: "60px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)" }}>
+          <div style={{ textAlign: "center", padding: "60px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)", gridColumn: "1 / -1" }}>
             <div style={{ fontSize: "48px", marginBottom: "16px" }}>🍽️</div>
             <h3 style={{ fontSize: "20px", fontWeight: "700" }}>No recipes in this category</h3>
             <p style={{ color: "var(--text-muted)", marginTop: "8px" }}>Try exploring a different taste or check back later!</p>
@@ -291,67 +171,18 @@ export default function UserDashboardPage({ setPage, setSelectedRecipe, setSelec
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "24px" }}>
         {filteredItems && filteredItems.length > 0 ? (
           filteredItems.map(recipe => (
-            <div key={recipe._id} style={{ 
-              background: "var(--white)", 
-              borderRadius: "24px", 
-              border: "1px solid var(--border-light)",
-              overflow: "hidden",
-              boxShadow: "var(--shadow-sm)",
-              display: "flex",
-              flexDirection: "column"
-            }}>
-              <div style={{ height: "180px", position: "relative" }}>
-                <img 
-                  src={getImageUrl(recipe.image)} 
-                  alt={recipe.title} 
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-                />
-                <div style={{ position: "absolute", top: "12px", right: "12px" }}>
-                  <span className="badge" style={{ background: "rgba(255,255,255,0.9)", color: "var(--navy)", border: "none" }}>{recipe.difficulty}</span>
-                </div>
-              </div>
-              <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
-                <h4 style={{ fontSize: "18px", fontWeight: "800", color: "var(--navy)", marginBottom: "8px", fontFamily: "'Playfair Display', serif" }}>{recipe.title}</h4>
-                <div style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span>⏱ {recipe.time || "20m"}</span>
-                  <span>•</span>
-                  <span>Chef {recipe.chef?.name || "Expert"}</span>
-                </div>
-                
-                <div style={{ marginTop: "auto", display: "flex", gap: "10px" }}>
-                  <button 
-                    className="btn-primary" 
-                    style={{ flex: 1, padding: "10px", fontSize: "12px", borderRadius: "10px" }}
-                    onClick={() => {
-                      setSelectedRecipe(recipe);
-                      setPage("recipe-detail");
-                    }}
-                  >
-                    View
-                  </button>
-                  <button 
-                    onClick={async () => {
-                      try {
-                        const res = await recipeAPI.toggleFavorite(recipe._id);
-                        if (res.data.success) setUser(res.data.data.user);
-                      } catch (err) { console.error(err); }
-                    }}
-                    style={{ 
-                      padding: "10px", 
-                      borderRadius: "10px", 
-                      border: "1px solid #ef4444", 
-                      background: "rgba(239, 68, 68, 0.05)", 
-                      color: "#ef4444",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                      cursor: "pointer"
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            </div>
+            <RecipeCard 
+              key={recipe._id} 
+              recipe={recipe} 
+              user={user}
+              setUser={setUser}
+              setPage={setPage}
+              setSelectedChefId={setSelectedChefId}
+              onClick={(r) => {
+                setSelectedRecipe(r);
+                setPage("recipe-detail");
+              }}
+            />
           ))
         ) : (
           <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)" }}>

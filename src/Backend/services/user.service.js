@@ -6,6 +6,64 @@ const { JWT_SECRET, JWT_EXPIRES_IN } = require("../config/config");
 const emailService = require("./email.service");
 
 const generateToken = (payload) => jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+const otpStore = new Map(); // Store OTPs temporarily: { email: { code, expires } }
+
+const sendSignupOTP = async (emailInput) => {
+  try {
+    const email = emailInput?.toLowerCase().trim();
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      const error = new Error("User already exists with this email");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(email, {
+      code,
+      expires: Date.now() + 10 * 60 * 1000, // 10 minutes
+    });
+
+    // Reuse reset password email service for signup as well, or create a new one
+    // For now, let's use the reset one but maybe tweak the subject if possible
+    await emailService.sendResetPasswordEmail(email, code);
+
+    return {
+      success: true,
+      message: "Verification code sent to your email",
+    };
+  } catch (error) {
+    console.error("Error in sendSignupOTP:", error.message);
+    throw error;
+  }
+};
+
+const verifySignupOTP = async (emailInput, code) => {
+  const email = emailInput?.toLowerCase().trim();
+  const data = otpStore.get(email);
+  if (!data) {
+    const error = new Error("No verification code sent to this email");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (data.expires < Date.now()) {
+    otpStore.delete(email);
+    const error = new Error("Verification code expired");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (data.code !== code) {
+    const error = new Error("Invalid verification code");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // OTP verified, but we don't delete yet. 
+  // We'll delete after registration is complete.
+  return { success: true };
+};
 
 const pushNotification = async (targetUserId, notification) => {
   if (!targetUserId) return;
@@ -31,7 +89,8 @@ const pushNotification = async (targetUserId, notification) => {
 
 const registerUser = async (userData) => {
   try {
-    const existingUser = await User.findOne({ email: userData.email });
+    const email = userData.email?.toLowerCase().trim();
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       const error = new Error("User already exists with this email");
       error.statusCode = 400;
@@ -44,9 +103,11 @@ const registerUser = async (userData) => {
       email: userData.email,
       password: userData.password,
       role: userData.role || "user",
+      phone: userData.phone, // Add phone if provided
     });
 
     await user.save();
+    otpStore.delete(userData.email); // Clean up OTP after successful registration
 
     return {
       success: true,
@@ -59,8 +120,9 @@ const registerUser = async (userData) => {
   }
 };
 
-const loginUser = async (email, password) => {
+const loginUser = async (emailInput, password) => {
   try {
+    const email = emailInput?.toLowerCase().trim();
     // Default Admin Bypass for development
     if (email === "admin" && password === "admin") {
       const adminUser = {
@@ -200,8 +262,9 @@ const getAllUsers = async (options = {}) => {
   }
 };
 
-const sendPasswordResetCode = async (email) => {
+const sendPasswordResetCode = async (emailInput) => {
   try {
+    const email = emailInput?.toLowerCase().trim();
     const user = await User.findOne({ email });
     if (!user) {
       const error = new Error("Email address not found");
@@ -232,8 +295,9 @@ const sendPasswordResetCode = async (email) => {
   }
 };
 
-const verifyResetCode = async (email, code) => {
+const verifyResetCode = async (emailInput, code) => {
   try {
+    const email = emailInput?.toLowerCase().trim();
     const user = await User.findOne({ email });
     if (!user) {
       const error = new Error("Email address not found");
@@ -270,8 +334,9 @@ const verifyResetCode = async (email, code) => {
   }
 };
 
-const resetPassword = async (email, code, newPassword) => {
+const resetPassword = async (emailInput, code, newPassword) => {
   try {
+    const email = emailInput?.toLowerCase().trim();
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
       const error = new Error("Email address not found");
@@ -632,4 +697,7 @@ module.exports = {
   getFollowersForChef,
   getNotifications,
   markNotificationsRead,
+  sendSignupOTP,
+  verifySignupOTP,
+
 };

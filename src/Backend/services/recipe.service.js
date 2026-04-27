@@ -29,7 +29,14 @@ const getAllRecipes = async (query = {}) => {
     const skip = (page - 1) * limit;
 
     // Build filter object
-    const filter = { status: query.status || "Live" }; // Default to live recipes if no status provided
+    // If status is provided, use it. Otherwise default to "Live".
+    // Special case: if status is "All" (for admins), don't filter by status.
+    const filter = {};
+    if (query.status && query.status !== "All") {
+      filter.status = query.status;
+    } else if (!query.status) {
+      filter.status = "Live";
+    }
 
     if (query.tag) {
       filter.tag = query.tag;
@@ -128,7 +135,10 @@ const createRecipe = async (recipeData, files) => {
     }
 
     // Create recipe
-    const recipe = new Recipe(recipeData);
+    const recipe = new Recipe({
+      ...recipeData,
+      status: recipeData.status || "Pending Review" // Default to Pending Review for new recipes
+    });
     await recipe.save();
 
     return await Recipe.findById(recipe._id).populate("chef", "name email avatar");

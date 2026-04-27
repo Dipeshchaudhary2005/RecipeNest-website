@@ -34,6 +34,8 @@ export const authAPI = {
   forgotPassword: (email) => api.post("/users/forgot-password", { email }),
   verifyResetCode: ({ email, code }) => api.post("/users/verify-reset-code", { email, code }),
   resetPassword: ({ email, code, password }) => api.post("/users/reset-password", { email, code, password }),
+  sendSignupOTP: (email) => api.post("/users/send-signup-otp", { email }),
+  verifySignupOTP: ({ email, code }) => api.post("/users/verify-signup-otp", { email, code }),
   getProfile: () => api.get("/users/profile"),
 };
 

@@ -310,18 +310,10 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, setSelec
               ))}
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "24px" }}>
               {loading ? (
-                <div style={{ textAlign: "center", padding: "60px" }}>
-                  <div style={{ 
-                    width: "48px", 
-                    height: "48px", 
-                    border: "4px solid var(--border-light)", 
-                    borderTop: "4px solid var(--primary)", 
-                    borderRadius: "50%", 
-                    animation: "spin 1s linear infinite",
-                    margin: "0 auto 20px"
-                  }} />
+                <div style={{ textAlign: "center", padding: "60px", gridColumn: "1 / -1" }}>
+                  <div className="spinner" style={{ margin: "0 auto 20px" }}></div>
                   <p style={{ color: "var(--text-muted)" }}>Plating up the feed...</p>
                 </div>
               ) : filteredFeed.length > 0 ? (
@@ -329,7 +321,7 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, setSelec
                   <RecipeCard 
                     key={recipe._id} 
                     recipe={recipe} 
-                    variant="feed"
+                    variant="grid"
                     user={user}
                     setUser={setUser}
                     setPage={setPage}
@@ -341,7 +333,7 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, setSelec
                   />
                 ))
               ) : (
-                <div style={{ textAlign: "center", padding: "60px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)" }}>
+                <div style={{ textAlign: "center", padding: "60px", background: "var(--white)", borderRadius: "24px", border: "1px solid var(--border-light)", gridColumn: "1 / -1" }}>
                   <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔍</div>
                   <h3 style={{ fontSize: "20px", fontWeight: "700" }}>No recipes found here</h3>
                   <p style={{ color: "var(--text-muted)", marginTop: "8px" }}>Try a different category or search for something specific.</p>

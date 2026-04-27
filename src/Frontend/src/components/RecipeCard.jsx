@@ -81,6 +81,11 @@ const cardStyles = `
     color: var(--text-main);
     margin-bottom: 10px;
     line-height: 1.3;
+    height: 52px; /* Fixed height for 2 lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .rn-card-desc {
     font-size: 14px;
@@ -91,6 +96,7 @@ const cardStyles = `
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    height: 44.8px; /* Fixed height for 2 lines */
   }
   .rn-card-meta {
     display: flex;
@@ -143,6 +149,14 @@ const cardStyles = `
     color: var(--primary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    padding: 6px 12px;
+    background: rgba(255, 49, 49, 0.05);
+    border-radius: 8px;
+    transition: all 0.3s;
+  }
+  .rn-card:hover .rn-view-link {
+    background: var(--primary);
+    color: #fff;
   }
 `;
 

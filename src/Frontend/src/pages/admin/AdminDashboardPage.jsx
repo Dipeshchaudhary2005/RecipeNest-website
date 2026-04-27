@@ -103,25 +103,22 @@ function AdminOverview({ setActiveNav, setRecipesFilterOverride }) {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [pendingRes, statsRes] = await Promise.all([
-        adminAPI.getPendingRecipes(),
-        adminAPI.getStats()
-      ]);
-      
-      if (pendingRes.data.success) {
-        const pendingData = pendingRes.data.data;
-        const pendingList = Array.isArray(pendingData) ? pendingData : pendingData.recipes || [];
-        setApplications(pendingList.map(r => ({
-          id: r._id,
-          name: r.chef?.name || "Chef",
-          title: r.title,
-          time: new Date(r.createdAt).toLocaleDateString(),
-          status: r.status || "pending"
-        })));
-      }
+      const statsRes = await adminAPI.getStats();
       
       if (statsRes.data.success) {
-        setStats(statsRes.data.data);
+        const statsData = statsRes.data.data;
+        setStats(statsData);
+        
+        // Populate "applications" (Recently Created Recipes) from the new recentRecipes field
+        if (statsData.recentRecipes) {
+          setApplications(statsData.recentRecipes.map(r => ({
+            id: r.id,
+            name: r.chef || "Chef",
+            title: r.title,
+            time: new Date(r.createdAt).toLocaleDateString(),
+            status: r.status || "Pending Review"
+          })));
+        }
       }
     } catch (err) {
       console.error("Dashboard load error:", err);
@@ -158,7 +155,7 @@ function AdminOverview({ setActiveNav, setRecipesFilterOverride }) {
     { label: "Total Users", value: stats.totalUsers, growth: "+0%", icon: "ri-group-line", color: "#3b82f6" },
     { label: "Live Recipes", value: stats.totalRecipes, growth: "+0%", icon: "ri-restaurant-2-line", color: "#10b981" },
     { label: "New Chefs", value: stats.newChefs, growth: `+${stats.newChefs}`, icon: "ri-user-star-line", color: "#f59e0b" },
-    { label: "Pending Review", value: stats.pendingRecipes, growth: stats.pendingRecipes.toString(), icon: "ri-heart-line", color: "var(--primary)" },
+    { label: "Pending Review", value: stats.pendingRecipes, growth: stats.pendingRecipes.toString(), icon: "ri-time-line", color: "var(--primary)" },
   ];
 
   return (
@@ -201,27 +198,41 @@ function AdminOverview({ setActiveNav, setRecipesFilterOverride }) {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <button
-                    onClick={() => handleApproveFromOverview(app.id)}
-                    style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "6px 10px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", color: "#10b981", cursor: "pointer" }}
-                  >
-                    Accept
-                  </button>
-                  <button
-                    onClick={() => handleRejectFromOverview(app.id)}
-                    style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "6px 10px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", color: "#ef4444", cursor: "pointer" }}
-                  >
-                    Cancel
-                  </button>
+                  {app.status === "Pending Review" ? (
+                    <>
+                      <button
+                        onClick={() => handleApproveFromOverview(app.id)}
+                        style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "6px 10px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", color: "#10b981", cursor: "pointer" }}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleRejectFromOverview(app.id)}
+                        style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "6px 10px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", color: "#ef4444", cursor: "pointer" }}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  ) : (
+                    <span style={{ 
+                      fontSize: "11px", 
+                      fontWeight: "800", 
+                      padding: "4px 10px", 
+                      borderRadius: "6px", 
+                      background: app.status === "Live" ? "#f0fdf4" : app.status === "Rejected" ? "#fef2f2" : "#f1f5f9", 
+                      color: app.status === "Live" ? "#10b981" : app.status === "Rejected" ? "#ef4444" : "#64748b" 
+                    }}>
+                      {app.status}
+                    </span>
+                  )}
                   <button
                     onClick={() => {
-                      setRecipesFilterOverride("Pending Review");
+                      setRecipesFilterOverride(app.status);
                       setActiveNav("recipes");
                     }}
-                    className="btn-primary"
-                    style={{ background: "var(--primary)", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", color: "#fff", cursor: "pointer" }}
+                    style={{ background: "var(--bg)", border: "1px solid var(--border-light)", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "700", color: "var(--text-main)", cursor: "pointer" }}
                   >
-                    Review
+                    View
                   </button>
                 </div>
               </div>
@@ -719,7 +730,7 @@ function AdminRecipes({ filterOverride, clearFilterOverride }) {
   const fetchRecipes = async () => {
     try {
       setLoading(true);
-      const response = await recipeAPI.getAll();
+      const response = await recipeAPI.getAll({ status: "All" }); // Admin sees all recipes
       if (response.data.success) {
         const recipeList = Array.isArray(response.data.data) ? response.data.data : response.data.data.recipes || [];
         setRecipes(recipeList.map(r => ({

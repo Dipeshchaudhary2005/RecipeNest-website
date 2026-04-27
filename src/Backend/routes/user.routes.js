@@ -40,6 +40,8 @@ router.post("/login", userController.login);
 router.post("/forgot-password", userController.forgotPassword);
 router.post("/verify-reset-code", userController.verifyResetCode);
 router.post("/reset-password", userController.resetPassword);
+router.post("/send-signup-otp", userController.sendSignupOTP);
+router.post("/verify-signup-otp", userController.verifySignupOTP);
 
 /**
  * POST /api/users/create

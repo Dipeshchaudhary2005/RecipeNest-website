@@ -20,6 +20,10 @@ const validateRegister = (data) => {
   } else if (data.password.length < 6) {
     errors.push("Password must be at least 6 characters");
   }
+
+  if (data.phone && data.phone.length !== 10) {
+    errors.push("Phone number must be exactly 10 digits");
+  }
   
   return errors;
 };
@@ -76,6 +80,34 @@ const handleError = (res, error) => {
     message: error.message || "Internal server error",
     ...(NODE_ENV === "development" && { stack: error.stack }),
   });
+};
+
+const sendSignupOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || email.trim() === "") {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    const result = await userService.sendSignupOTP(email);
+    res.status(200).json({ success: true, message: result.message });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+const verifySignupOTP = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || email.trim() === "" || !code || code.trim() === "") {
+      return res.status(400).json({ success: false, message: "Email and code are required" });
+    }
+
+    const result = await userService.verifySignupOTP(email, code);
+    res.status(200).json({ success: true, message: "Email verified successfully" });
+  } catch (error) {
+    handleError(res, error);
+  }
 };
 
 const register = async (req, res) => {
@@ -386,4 +418,7 @@ module.exports = {
   getMyFollowers,
   getMyNotifications,
   markNotificationsRead,
+  sendSignupOTP,
+  verifySignupOTP,
+
 };

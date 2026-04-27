@@ -7,10 +7,12 @@ const Recipe = require("../models/recipe.models");
  */
 const getAdminStats = async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalRecipes = await Recipe.countDocuments({ status: "Live" });
-    const pendingRecipes = await Recipe.countDocuments({ status: "Pending Review" });
-    const totalChefs = await User.countDocuments({ role: "chef" });
+    const [totalUsers, liveRecipes, pendingRecipes, totalChefs] = await Promise.all([
+      User.countDocuments(),
+      Recipe.countDocuments({ status: "Live" }),
+      Recipe.countDocuments({ status: "Pending Review" }),
+      User.countDocuments({ role: "chef" })
+    ]);
 
     // New Chefs (joined in last 30 days)
     const thirtyDaysAgo = new Date();
@@ -20,24 +22,54 @@ const getAdminStats = async (req, res) => {
       createdAt: { $gte: thirtyDaysAgo } 
     });
 
+    // Real Engagement (Total Favorites + Total Reviews)
+    const [favoritesCountAgg, reviewsCountAgg] = await Promise.all([
+      User.aggregate([
+        { $project: { favoritesCount: { $size: "$favorites" } } },
+        { $group: { _id: null, total: { $sum: "$favoritesCount" } } }
+      ]),
+      Recipe.aggregate([
+        { $project: { reviewsCount: { $size: "$reviewList" } } },
+        { $group: { _id: null, total: { $sum: "$reviewsCount" } } }
+      ])
+    ]);
+
+    const totalFavorites = favoritesCountAgg?.[0]?.total || 0;
+    const totalReviews = reviewsCountAgg?.[0]?.total || 0;
+    
+    // Engagement Score (arbitrary formula for demonstration: (favs*2 + reviews*3) / totalUsers)
+    const engagementScore = totalUsers > 0 
+      ? Math.min(100, Math.round(((totalFavorites * 2) + (totalReviews * 3)) / (totalUsers * 0.5)))
+      : 0;
+
+    // Recent Recipes (latest 5 across all statuses)
+    const recentRecipes = await Recipe.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate("chef", "name avatar")
+      .lean();
+
     res.status(200).json({
       success: true,
       data: {
-        totalRecipes,
+        totalRecipes: liveRecipes,
         totalUsers,
         newChefs,
         pendingRecipes,
-        engagement: 92 // Static realistic for now
+        engagement: engagementScore || 0,
+        recentRecipes: recentRecipes.map(r => ({
+          id: r._id,
+          title: r.title,
+          chef: r.chef?.name || "Unknown",
+          status: r.status,
+          createdAt: r.createdAt
+        }))
       },
       message: "Admin statistics retrieved successfully"
     });
   } catch (error) {
     console.error("Get admin stats error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to retrieve statistics",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
-    });
+    handleError(res, error);
   }
 };
 
