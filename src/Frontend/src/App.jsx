@@ -25,19 +25,6 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 // Components
 import Navbar from "./components/Navbar";
 
-/**
- * RecipeNest — Full Multi-Role App
- *
- * Pages:
- *  "home"             → Public landing + recipe grid
- *  "recipe-detail"    → Single recipe view
- *  "login"            → Login (routes to role dashboard on submit)
- *  "signup"           → Register (role picker: user / chef)
- *  "forgot-password"  → 4-step password reset flow
- *  "user-dashboard"   → Saved recipes, favorites
- *  "chef-dashboard"   → My creations, analytics
- *  "admin-dashboard"  → User mgmt, recipes, analytics, reports
- */
 export default function App() {
   // Initial State from localStorage
   const [user, setUser] = useState(() => {

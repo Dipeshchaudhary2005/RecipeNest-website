@@ -10,6 +10,24 @@ export default function ExploreRecipesPage({ setPage, setSelectedRecipe, setSele
 
   const TABS = ["All", "Easy", "Medium", "Hard"];
 
+  const fetchRecipes = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await recipeAPI.getAll();
+      if (response.data.success) {
+        const data = response.data.data;
+        setRecipes(Array.isArray(data) ? data : data.recipes || []);
+      } else {
+        setRecipes([]);
+      }
+    } catch (err) {
+      console.error("Error fetching recipes:", err);
+      setRecipes([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchRecipes();
 
@@ -43,24 +61,6 @@ export default function ExploreRecipesPage({ setPage, setSelectedRecipe, setSele
       window.removeEventListener("recipe-updated", onRecipeUpdated);
     };
   }, [fetchRecipes]);
-
-  const fetchRecipes = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await recipeAPI.getAll();
-      if (response.data.success) {
-        const data = response.data.data;
-        setRecipes(Array.isArray(data) ? data : data.recipes || []);
-      } else {
-        setRecipes([]);
-      }
-    } catch (err) {
-      console.error("Error fetching recipes:", err);
-      setRecipes([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const filtered = recipes.filter(r => {
     const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) || 
