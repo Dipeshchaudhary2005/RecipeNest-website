@@ -132,7 +132,7 @@ export default function App() {
     // If we have a user, show their specific dashboard
     if (user) {
       switch (user.role) {
-        case "admin": return <AdminDashboardPage setPage={navigateTo} user={user} setUser={setUser} onLogout={handleLogout} />;
+        case "admin": return <AdminDashboardPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} user={user} setUser={setUser} onLogout={handleLogout} />;
         case "chef": return <ChefDashboardPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} setSelectedChefId={setSelectedChefId} user={user} setUser={setUser} onLogout={handleLogout} />;
         case "user": return <UserDashboardPage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} setSelectedChefId={setSelectedChefId} user={user} setUser={setUser} onLogout={handleLogout} />;
         default: return <HomePage setPage={navigateTo} setSelectedRecipe={setSelectedRecipe} setSelectedChefId={setSelectedChefId} search={search} setSearch={setSearch} />;

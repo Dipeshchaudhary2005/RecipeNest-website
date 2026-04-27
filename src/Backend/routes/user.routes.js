@@ -156,7 +156,7 @@ router.get("/", protect, adminOnly, userController.getAllUsers);
  * GET /api/users/:id
  * Get specific user by ID
  */
-router.get("/:id", protect, adminOnly, userController.getUserById);
+router.get("/:id", protect, userController.getUserById);
 
 /**
  * DELETE /api/users/:id

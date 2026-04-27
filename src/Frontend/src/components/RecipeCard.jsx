@@ -161,10 +161,25 @@ const cardStyles = `
 `;
 
 export default function RecipeCard({ recipe, onClick, user, setUser, setPage, setSelectedChefId, variant = "grid" }) {
-  const [loading, setLoading] = useState({ follow: false, favorite: false });
-
+  const [loading, setLoading] = useState({ follow: false, favorite: false, like: false });
   const isFavorited = user?.favorites?.some(f => (f._id || f) === recipe._id);
   const isFollowing = user?.following?.some(f => (f._id || f) === (recipe.chef?._id || recipe.chef));
+  const isLiked = recipe.likes?.some(id => (id._id || id) === user?._id);
+
+  const handleLike = async (e) => {
+    e.stopPropagation();
+    if (!user) { setPage && setPage("login"); return; }
+    if (loading.like) return;
+    setLoading(prev => ({ ...prev, like: true }));
+    try {
+      const res = await recipeAPI.toggleLike(recipe._id);
+      if (res.data.success) {
+        // We trigger a custom event so parent components can refresh if they want
+        window.dispatchEvent(new CustomEvent("recipe-updated", { detail: res.data.data.recipe }));
+      }
+    } catch (err) { console.error(err); }
+    finally { setLoading(prev => ({ ...prev, like: false })); }
+  };
 
   const handleFavorite = async (e) => {
     e.stopPropagation();
@@ -308,16 +323,47 @@ export default function RecipeCard({ recipe, onClick, user, setUser, setPage, se
         </div>
 
         <div className="feed-post-actions" style={{ padding: "16px 20px" }}>
-          <button className="action-btn" style={{ fontSize: "14px" }}>
-            <span style={{ fontSize: "18px" }}>🔥</span> Like
+          <button 
+            className="action-btn" 
+            style={{ 
+              fontSize: "14px", 
+              color: isLiked ? "var(--primary)" : "inherit",
+              fontWeight: isLiked ? "800" : "500"
+            }}
+            onClick={handleLike}
+          >
+            <span style={{ fontSize: "18px" }}>🔥</span> {isLiked ? "Liked" : "Like"}
           </button>
-          <button className="action-btn" style={{ fontSize: "14px" }}>
+          <button 
+            className="action-btn" 
+            style={{ fontSize: "14px" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick && onClick(recipe);
+            }}
+          >
             <span style={{ fontSize: "18px" }}>💬</span> Comment
           </button>
-          <button className="action-btn" style={{ fontSize: "14px" }}>
-            <span style={{ fontSize: "18px" }}>🔖</span> Save
+          <button 
+            className="action-btn" 
+            style={{ 
+              fontSize: "14px", 
+              color: isFavorited ? "var(--primary)" : "inherit",
+              fontWeight: isFavorited ? "800" : "500"
+            }}
+            onClick={handleFavorite}
+          >
+            <span style={{ fontSize: "18px" }}>{isFavorited ? "❤️" : "🔖"}</span> {isFavorited ? "Saved" : "Save"}
           </button>
-          <button className="action-btn" style={{ marginLeft: "auto", fontSize: "14px" }}>
+          <button 
+            className="action-btn" 
+            style={{ marginLeft: "auto", fontSize: "14px" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(window.location.origin + "?recipe=" + recipe._id);
+              alert("Link copied to clipboard!");
+            }}
+          >
             <span style={{ fontSize: "18px" }}>🚀</span> Share
           </button>
         </div>

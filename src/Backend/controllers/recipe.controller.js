@@ -477,6 +477,23 @@ const getRecipeReviews = async (req, res) => {
   }
 };
 
+/**
+ * Toggle like on a recipe
+ * PUT /api/recipes/:id/like
+ */
+const toggleLike = async (req, res) => {
+  try {
+    const result = await recipeService.toggleLikeRecipe(req.user._id, req.params.id);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Toggle like error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to toggle like",
+    });
+  }
+};
+
 module.exports = {
   getAllRecipes,
   getRecipeById,
@@ -489,4 +506,5 @@ module.exports = {
   getMyStats,
   addOrUpdateReview,
   getRecipeReviews,
+  toggleLike,
 };

@@ -117,7 +117,7 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, setSelec
   };
 
   const handleViewStats = (recipe) => {
-    alert(`Stats for ${recipe.title}:\nLikes: ${recipe.likes || 0}\nSaves: ${recipe.saves || 0}\nReviews: ${recipe.reviews || 0}\nRating: ${recipe.rating || 0}`);
+    alert(`Stats for ${recipe.title}:\nLikes: ${recipe.likesCount || (recipe.likes?.length || 0)}\nSaves: ${recipe.saves || 0}\nReviews: ${recipe.reviews || 0}\nRating: ${recipe.rating || 0}`);
   };
 
   const fetchFeed = async () => {
@@ -347,7 +347,7 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, setSelec
             <div className="stats-row" style={{ marginBottom: "40px" }}>
               {[
                 { label: "Total Recipes", val: (myStats?.totalRecipes ?? recipes.length).toString(), icon: "📝", bg: "rgba(59, 130, 246, 0.1)", color: "#3b82f6" },
-                { label: "Average Rating", val: (myStats?.avgRating ?? 0).toString(), icon: "⭐", bg: "rgba(234, 179, 8, 0.1)", color: "#eab308" },
+                { label: "Total Likes", val: (myStats?.totalLikes ?? 0).toString(), icon: "🔥", bg: "rgba(255, 152, 0, 0.1)", color: "#ff9800" },
                 { label: "Community Saves", val: (myStats?.totalSaves ?? 0).toString(), icon: "🔖", bg: "rgba(16, 185, 129, 0.1)", color: "#10b981" },
                 { label: "Engagement", val: `${myStats?.engagementScore ?? 0}%`, icon: "📣", bg: "rgba(255, 49, 49, 0.1)", color: "var(--primary)" },
               ].map((stat, i) => (
@@ -410,7 +410,7 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, setSelec
                           {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}
                         </div>
                         <div style={{ marginTop: "8px", display: "flex", gap: "10px", fontSize: "12px", color: "var(--text-muted)", flexWrap: "wrap" }}>
-                          <span>⭐ {(r.rating ?? 0).toFixed ? (r.rating ?? 0).toFixed(1) : (r.rating ?? 0)}</span>
+                          <span>🔥 {r.likesCount || (r.likes?.length || 0)}</span>
                           <span>💬 {r.reviews ?? 0}</span>
                         </div>
                       </div>
@@ -609,7 +609,7 @@ export default function ChefDashboardPage({ setPage, setSelectedRecipe, setSelec
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: "900", color: n.read ? "var(--text-muted)" : "var(--navy)", fontSize: "14px" }}>
-                          {n.message || (n.type === "follow" ? "New follower" : "Recipe saved")}
+                          {n.message || (n.type === "follow" ? "New follower" : n.type === "like" ? "Recipe liked" : "Recipe saved")}
                         </div>
                         <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
                           <span>{new Date(n.createdAt).toLocaleString()}</span>

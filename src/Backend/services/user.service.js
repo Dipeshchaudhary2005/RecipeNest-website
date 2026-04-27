@@ -699,5 +699,6 @@ module.exports = {
   markNotificationsRead,
   sendSignupOTP,
   verifySignupOTP,
+  pushNotification,
 
 };

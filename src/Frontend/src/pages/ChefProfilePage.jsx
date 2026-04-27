@@ -31,7 +31,7 @@ export default function ChefProfilePage({
       ]);
 
       if (chefRes.data.success) {
-        setChef(chefRes.data.data);
+        setChef(chefRes.data.data.user);
       }
 
       if (recipesRes.data.success) {

@@ -22,8 +22,8 @@ const getAdminStats = async (req, res) => {
       createdAt: { $gte: thirtyDaysAgo } 
     });
 
-    // Real Engagement (Total Favorites + Total Reviews)
-    const [favoritesCountAgg, reviewsCountAgg] = await Promise.all([
+    // Real Engagement (Total Favorites + Total Reviews + Total Likes)
+    const [favoritesCountAgg, reviewsCountAgg, likesCountAgg] = await Promise.all([
       User.aggregate([
         { $project: { favoritesCount: { $size: "$favorites" } } },
         { $group: { _id: null, total: { $sum: "$favoritesCount" } } }
@@ -31,15 +31,20 @@ const getAdminStats = async (req, res) => {
       Recipe.aggregate([
         { $project: { reviewsCount: { $size: "$reviewList" } } },
         { $group: { _id: null, total: { $sum: "$reviewsCount" } } }
+      ]),
+      Recipe.aggregate([
+        { $project: { likesCount: { $size: { $ifNull: ["$likes", []] } } } },
+        { $group: { _id: null, total: { $sum: "$likesCount" } } }
       ])
     ]);
 
     const totalFavorites = favoritesCountAgg?.[0]?.total || 0;
     const totalReviews = reviewsCountAgg?.[0]?.total || 0;
+    const totalLikes = likesCountAgg?.[0]?.total || 0;
     
-    // Engagement Score (arbitrary formula for demonstration: (favs*2 + reviews*3) / totalUsers)
+    // Engagement Score (formula: (favs*2 + reviews*3 + likes*1) / totalUsers)
     const engagementScore = totalUsers > 0 
-      ? Math.min(100, Math.round(((totalFavorites * 2) + (totalReviews * 3)) / (totalUsers * 0.5)))
+      ? Math.min(100, Math.round(((totalFavorites * 2) + (totalReviews * 3) + (totalLikes * 1)) / (totalUsers * 0.5)))
       : 0;
 
     // Recent Recipes (latest 5 across all statuses)

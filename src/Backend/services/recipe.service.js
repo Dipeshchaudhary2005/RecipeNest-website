@@ -13,6 +13,7 @@
 
 const Recipe = require("../models/recipe.models");
 const User = require("../models/user.models");
+const userService = require("./user.service");
 const { deleteOldFile, getFileUrl } = require("../config/multer.config");
 const mongoose = require("mongoose");
 
@@ -44,6 +45,10 @@ const getAllRecipes = async (query = {}) => {
 
     if (query.difficulty) {
       filter.difficulty = query.difficulty;
+    }
+
+    if (query.chef) {
+      filter.chef = query.chef;
     }
 
     if (query.search) {
@@ -425,7 +430,16 @@ const getChefStats = async (chefId) => {
     // Lightweight "engagement score" (0-100) derived from saves and published content.
     // Not a perfect metric, but it's real + stable without needing extra tracking tables.
     const liveCount = statusCounts["Live"] || 0;
-    const engagementScore = Math.min(100, Math.round((totalSaves * 2 + liveCount * 5) / 2));
+    
+    // Get total likes across all recipes
+    const totalLikesAgg = await Recipe.aggregate([
+      { $match: { chef: chefId } },
+      { $project: { likesCount: { $size: { $ifNull: ["$likes", []] } } } },
+      { $group: { _id: null, total: { $sum: "$likesCount" } } }
+    ]);
+    const totalLikes = totalLikesAgg?.[0]?.total || 0;
+
+    const engagementScore = Math.min(100, Math.round((totalSaves * 2 + totalLikes * 3 + liveCount * 5) / 2));
 
     return {
       totalRecipes,
@@ -437,8 +451,12 @@ const getChefStats = async (chefId) => {
       },
       avgRating,
       totalSaves,
+      totalLikes,
       engagementScore,
-      recent,
+      recent: recent.map(r => ({
+        ...r,
+        likesCount: r.likes?.length || 0
+      })),
     };
   } catch (error) {
     console.error("Get chef stats error:", error);
@@ -523,6 +541,52 @@ const getRecipeReviews = async (recipeId) => {
   };
 };
 
+/**
+ * Toggle like on a recipe
+ */
+const toggleLikeRecipe = async (userId, recipeId) => {
+  try {
+    const recipe = await Recipe.findById(recipeId);
+    if (!recipe) throw new Error("Recipe not found");
+
+    const user = await User.findById(userId).select("name avatar");
+    if (!user) throw new Error("User not found");
+
+    const isLiked = recipe.likes?.includes(userId);
+    const update = isLiked 
+      ? { $pull: { likes: userId } } 
+      : { $addToSet: { likes: userId } };
+
+    const updatedRecipe = await Recipe.findByIdAndUpdate(
+      recipeId,
+      update,
+      { new: true }
+    ).populate("chef", "name email avatar");
+
+    // Notify chef only when a new like is added
+    if (!isLiked) {
+      const chefId = updatedRecipe.chef._id || updatedRecipe.chef;
+      if (chefId.toString() !== userId.toString()) {
+        await userService.pushNotification(chefId, {
+          type: "like",
+          actor: { _id: userId, name: user.name, avatar: user.avatar },
+          recipe: { _id: recipeId, title: updatedRecipe.title, image: updatedRecipe.image },
+          message: `${user.name} liked your recipe: ${updatedRecipe.title}`,
+        });
+      }
+    }
+
+    return { 
+      success: true, 
+      message: isLiked ? "Recipe unliked" : "Recipe liked",
+      data: { recipe: updatedRecipe, isLiked: !isLiked }
+    };
+  } catch (error) {
+    console.error("Error in toggleLikeRecipe:", error.message);
+    throw error;
+  }
+};
+
 module.exports = {
   getAllRecipes,
   getRecipeById,
@@ -535,4 +599,5 @@ module.exports = {
   getChefStats,
   addOrUpdateReview,
   getRecipeReviews,
+  toggleLikeRecipe,
 };

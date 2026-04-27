@@ -10,7 +10,7 @@ const NAV = [
   { icon: "ri-flag-line", label: "Reports", id: "reports" },
 ];
 
-export default function AdminDashboardPage({ setPage, onLogout }) {
+export default function AdminDashboardPage({ setPage, setSelectedRecipe, user, setUser, onLogout }) {
   const [activeNav, setActiveNav] = useState("dashboard");
   const [recipesFilterOverride, setRecipesFilterOverride] = useState(null);
 
@@ -81,6 +81,8 @@ export default function AdminDashboardPage({ setPage, onLogout }) {
           <AdminRecipes
             filterOverride={recipesFilterOverride}
             clearFilterOverride={() => setRecipesFilterOverride(null)}
+            setPage={setPage}
+            setSelectedRecipe={setSelectedRecipe}
           />
         )}
         {activeNav === "analytics" && <AdminAnalytics />}
@@ -690,7 +692,7 @@ function AdminUsers() {
   );
 }
 
-function AdminRecipes({ filterOverride, clearFilterOverride }) {
+function AdminRecipes({ filterOverride, clearFilterOverride, setPage, setSelectedRecipe }) {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -740,7 +742,8 @@ function AdminRecipes({ filterOverride, clearFilterOverride }) {
           image: r.image || "https://via.placeholder.com/300x200",
           tag: r.difficulty || "Easy",
           status: r.status || "Pending Review",
-          description: r.description || ""
+          description: r.description || "",
+          _full: r // Keep reference to full object for viewing
         })));
       }
     } catch (err) {
@@ -890,14 +893,15 @@ function AdminRecipes({ filterOverride, clearFilterOverride }) {
                     </button>
                   </div>
                 )}
-                {r.status === "Live" && (
-                  <button 
-                    onClick={() => alert("View recipe details")}
-                    style={{ width: "100%", padding: "10px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border-light)", color: "var(--text-main)", fontSize: "12px", fontWeight: "800", cursor: "pointer" }}
-                  >
-                    View Details
-                  </button>
-                )}
+                <button 
+                  onClick={() => {
+                    setSelectedRecipe(r._full);
+                    setPage("recipe-detail");
+                  }}
+                  style={{ width: "100%", padding: "10px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border-light)", color: "var(--text-main)", fontSize: "12px", fontWeight: "800", cursor: "pointer" }}
+                >
+                  View Details
+                </button>
               </div>
             </div>
           ))}

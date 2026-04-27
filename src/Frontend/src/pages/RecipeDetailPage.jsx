@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { getImageUrl, userAPI, recipeAPI } from "../services/api";
+import { getImageUrl, userAPI, recipeAPI, adminAPI } from "../services/api";
 
 const getInitials = (chef) => {
   const name = typeof chef === "string" ? chef : chef?.name || "Chef";
@@ -82,10 +82,90 @@ export default function RecipeDetailPage({ recipe, setPage, setSelectedChefId, o
     }));
   };
 
+  const handleApprove = async () => {
+    try {
+      const res = await adminAPI.approveRecipe(liveRecipe._id);
+      if (res.data.success) {
+        setLiveRecipe(res.data.data);
+        // Refresh stats/analytics on dashboard by emitting update event
+        window.dispatchEvent(new CustomEvent("recipe-updated", { detail: res.data.data }));
+      }
+    } catch (err) {
+      console.error("Approve error:", err);
+      alert("Failed to approve recipe.");
+    }
+  };
+
+  const handleReject = async () => {
+    const reason = prompt("Enter rejection reason:", "Does not meet community guidelines.");
+    if (reason === null) return;
+    try {
+      const res = await adminAPI.rejectRecipe(liveRecipe._id, reason);
+      if (res.data.success) {
+        setLiveRecipe(res.data.data);
+        window.dispatchEvent(new CustomEvent("recipe-updated", { detail: res.data.data }));
+      }
+    } catch (err) {
+      console.error("Reject error:", err);
+      alert("Failed to reject recipe.");
+    }
+  };
+
   return (
     <div style={{ background: "#fff", minHeight: "100vh" }}>
       <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 24px 100px" }}>
         
+        {/* Admin Moderation Bar */}
+        {user?.role === "admin" && (
+          <div style={{ 
+            background: liveRecipe.status === "Pending Review" ? "rgba(255, 152, 0, 0.08)" : liveRecipe.status === "Rejected" ? "rgba(255, 49, 49, 0.05)" : "rgba(16, 185, 129, 0.05)",
+            border: `1px solid ${liveRecipe.status === "Pending Review" ? "rgba(255, 152, 0, 0.2)" : liveRecipe.status === "Rejected" ? "rgba(255, 49, 49, 0.15)" : "rgba(16, 185, 129, 0.15)"}`,
+            borderRadius: "24px", 
+            padding: "24px", 
+            marginBottom: "40px", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "space-between",
+            gap: "24px",
+            flexWrap: "wrap"
+          }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
+                <span style={{ fontSize: "20px" }}>🛡️</span>
+                <span style={{ fontWeight: "900", color: "var(--navy)", fontSize: "18px" }}>Moderation Panel</span>
+                <span className={`badge ${liveRecipe.status === "Live" ? "badge-live" : liveRecipe.status === "Rejected" ? "badge-rejected" : "badge-pending"}`} style={{ marginLeft: "8px" }}>
+                  {liveRecipe.status}
+                </span>
+              </div>
+              <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: 0 }}>
+                {liveRecipe.status === "Pending Review" ? "Review this content to ensure it meets platform standards before making it live." :
+                 liveRecipe.status === "Rejected" ? `This recipe was rejected. Reason: ${liveRecipe.rejectionReason || "N/A"}` :
+                 "This recipe is currently live. You can still reject it if guidelines are violated."}
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "12px" }}>
+              {liveRecipe.status !== "Live" && (
+                <button 
+                  onClick={handleApprove} 
+                  className="btn-primary" 
+                  style={{ background: "#10b981", border: "none", padding: "12px 28px", borderRadius: "14px" }}
+                >
+                  Approve Recipe
+                </button>
+              )}
+              {liveRecipe.status !== "Rejected" && (
+                <button 
+                  onClick={handleReject} 
+                  className="btn-secondary" 
+                  style={{ color: "var(--primary)", border: "1px solid rgba(255, 49, 49, 0.3)", padding: "12px 28px", borderRadius: "14px" }}
+                >
+                  Reject Content
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Breadcrumbs */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "var(--text-muted)", marginBottom: "32px", fontWeight: "500" }}>
           <button onClick={() => setPage("home")} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontWeight: "600" }}>Recipes</button>
@@ -453,7 +533,6 @@ export default function RecipeDetailPage({ recipe, setPage, setSelectedChefId, o
                   { icon: "⏱️", label: "Prep Time", val: liveRecipe.prepTime },
                   { icon: "🔥", label: "Cook Time", val: liveRecipe.cookTime },
                   { icon: "👥", label: "Servings", val: liveRecipe.servings },
-                  { icon: "⚡", label: "Calories", val: liveRecipe.calories },
                   { icon: "📈", label: "Difficulty", val: liveRecipe.difficulty },
                   { icon: "🌍", label: "Cuisine", val: liveRecipe.cuisine }
                 ].map((item, i) => (
@@ -464,9 +543,6 @@ export default function RecipeDetailPage({ recipe, setPage, setSelectedChefId, o
                   </div>
                 ))}
               </div>
-              <button className="btn-secondary" style={{ width: "100%", marginTop: "32px", fontSize: "14px", fontWeight: "700" }}>
-                Print Full Recipe
-              </button>
             </div>
 
             {liveRecipe.tip && (

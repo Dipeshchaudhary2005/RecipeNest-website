@@ -64,6 +64,7 @@ export const recipeAPI = {
   getMyRecipes: (params) => api.get("/recipes/my-recipes", { params }),
   getMyStats: () => api.get("/recipes/my-stats"),
   toggleFavorite: (id) => api.put(`/users/favorites/${id}`),
+  toggleLike: (id) => api.put(`/recipes/${id}/like`),
 };
 
 export const userAPI = {

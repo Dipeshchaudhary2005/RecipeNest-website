@@ -69,6 +69,7 @@ router.get("/my-stats", protect, recipeController.getMyStats);
  * Requires authentication
  */
 router.post("/:id/reviews", protect, recipeController.addOrUpdateReview);
+router.put("/:id/like", protect, recipeController.toggleLike);
 
 /**
  * GET /api/recipes/:id/reviews

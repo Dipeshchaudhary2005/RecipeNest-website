@@ -111,12 +111,6 @@ const RecipeSchema = new mongoose.Schema(
       default: 1,
     },
 
-    calories: {
-      type: Number,
-      min: [0, "Calories cannot be negative"],
-      default: 0,
-    },
-
     // Difficulty level
     difficulty: {
       type: String,
@@ -222,6 +216,12 @@ const RecipeSchema = new mongoose.Schema(
     tags: [{
       type: String,
       trim: true,
+    }],
+
+    // Likes tracking
+    likes: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     }],
   },
   {
