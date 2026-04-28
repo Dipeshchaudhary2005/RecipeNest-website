@@ -3,7 +3,7 @@
 
 const store = {
   users: [],
-  courses: []
+  recipes: []
 };
 
 // Optional: Add some initial seed data if you want the API to not be empty on start
