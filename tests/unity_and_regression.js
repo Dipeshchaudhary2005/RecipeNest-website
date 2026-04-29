@@ -29,7 +29,7 @@ async function runTests() {
       await axios.post(`${BASE_URL}/users/register`, {
         name: "Test",
         email: "fail@test.com",
-        phone: "123456789", // 9 digits
+        phone: "1234567890", // 10 digits
         password: "password123"
       });
       console.log("  FAIL: Allowed 9-digit phone number");
